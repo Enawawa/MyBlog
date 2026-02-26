@@ -218,27 +218,76 @@ export default function RoomPage() {
     [roomId, nickname, appendMessage]
   );
 
+  // 从 File/Blob 读取图片并发送（供 paste 多种来源复用）
+  const processImageFile = useCallback(
+    (file: File | Blob, onSuccess: () => void) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const d = ev.target?.result as string;
+        if (d) sendImage(d);
+        onSuccess();
+      };
+      reader.onerror = onSuccess;
+      reader.readAsDataURL(file);
+    },
+    [sendImage]
+  );
+
   useEffect(() => {
     if (!verified) return;
     const handlePaste = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const d = ev.target?.result as string;
-              if (d) sendImage(d);
-            };
-            reader.readAsDataURL(file);
+      const cd = e.clipboardData;
+      let imageHandled = false;
+
+      // 1. 优先从 clipboardData.items 读取（标准路径）
+      const items = cd?.items;
+      if (items) {
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              imageHandled = true;
+              processImageFile(file, () => {});
+              return;
+            }
           }
-          return;
         }
       }
-      const text = e.clipboardData?.getData("text");
+
+      // 2. iOS/微信输入法跨设备粘贴时 items 可能为空，尝试 clipboardData.files
+      const files = cd?.files;
+      if (files && files.length > 0) {
+        for (const file of Array.from(files)) {
+          if (file.type.startsWith("image/")) {
+            e.preventDefault();
+            imageHandled = true;
+            processImageFile(file, () => {});
+            return;
+          }
+        }
+      }
+
+      // 3. 若 paste 事件的 clipboardData 无图片，尝试 Async Clipboard API（iOS 13.4+ 更可靠）
+      if (!imageHandled && navigator.clipboard?.read) {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const item of clipboardItems) {
+            for (const type of item.types) {
+              if (type.startsWith("image/")) {
+                e.preventDefault();
+                const blob = await item.getType(type);
+                processImageFile(blob, () => {});
+                return;
+              }
+            }
+          }
+        } catch {
+          /* 权限或兼容性失败，忽略 */
+        }
+      }
+
+      const text = cd?.getData("text");
       if (
         text &&
         document.activeElement?.tagName !== "INPUT" &&
@@ -267,7 +316,7 @@ export default function RoomPage() {
     };
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [verified, roomId, nickname, appendMessage, sendImage]);
+  }, [verified, roomId, nickname, appendMessage, sendImage, processImageFile]);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -597,11 +646,14 @@ export default function RoomPage() {
       <div className="sticky bottom-0 glass border-b-0 border-x-0 px-4 sm:px-8 py-4">
         <div className="max-w-4xl mx-auto">
           <div
+            role="button"
+            tabIndex={0}
             className={`paste-zone rounded-xl p-4 mb-3 text-center cursor-pointer ${dragOver ? "dragover" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
