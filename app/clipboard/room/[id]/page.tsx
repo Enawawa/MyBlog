@@ -334,7 +334,7 @@ export default function RoomPage() {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <div className="text-center glass rounded-2xl p-10 max-w-md mx-4">
-          <div className="text-4xl mb-4">😢</div>
+          <span className="text-4xl mb-4 block" role="img" aria-label="sad">😢</span>
           <h2 className="text-xl font-bold mb-2">无法进入房间</h2>
           <p className="text-slate-400 mb-6">{error}</p>
           <button onClick={() => router.push("/clipboard")} className="btn-primary">
@@ -350,7 +350,7 @@ export default function RoomPage() {
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
         <div className="glass rounded-2xl p-8 max-w-md w-full animate-fade-in">
           <div className="text-center mb-6">
-            <div className="text-4xl mb-3">🔒</div>
+            <span className="text-4xl mb-3 block" role="img" aria-label="lock">🔒</span>
             <h2 className="text-xl font-bold">{room.name}</h2>
             <p className="text-slate-400 text-sm mt-1">此房间需要口令才能进入</p>
           </div>
@@ -404,14 +404,14 @@ export default function RoomPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={handleCopyLink} className="btn-ghost text-xs px-3 py-1.5">
-              {copied ? "✓ 已复制" : "🔗 分享"}
+              {copied ? "✓ 已复制" : <><span role="img" aria-label="link">🔗</span>{" 分享"}</>}
             </button>
             {room?.hasPassword && (
               <button
                 onClick={() => setShowDelete(!showDelete)}
                 className="btn-ghost text-xs px-3 py-1.5 text-red-400 hover:text-red-300"
               >
-                🗑️
+                <span role="img" aria-label="delete">🗑️</span>
               </button>
             )}
           </div>
@@ -453,52 +453,51 @@ export default function RoomPage() {
 
       {/* Messages */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-8 pb-4 overflow-auto">
-        {messages.length === 0 ? (
+        {messages.length === 0 && (
           <div className="text-center py-20 text-slate-500">
-            <div className="text-5xl mb-4">📭</div>
+            <span className="text-5xl mb-4 block" role="img" aria-label="empty">📭</span>
             <p className="text-lg">还没有内容</p>
             <p className="text-sm mt-1">粘贴文字或图片来开始分享吧</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((msg) => (
-              <div key={msg.id} className="message-enter">
-                <div className="glass rounded-2xl p-4 glass-hover">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-indigo-400">{msg.sender}</span>
-                    <span className="text-xs text-slate-600">{formatTime(msg.timestamp)}</span>
-                  </div>
-                  {msg.type === "text" ? (
-                    <div className="group relative">
-                      <p className="text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
-                        {msg.content}
-                      </p>
-                      <button
-                        onClick={() => handleCopyContent(msg.content)}
-                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100
-                                   text-xs text-slate-500 hover:text-indigo-400 transition-all p-1"
-                        title="复制"
-                      >
-                        📋
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-1">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={msg.content}
-                        alt="shared"
-                        className="max-w-full max-h-96 rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setPreviewImage(msg.content)}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
         )}
+        <div className="space-y-3">
+          {messages.map((msg) => (
+            <div key={msg.id} className="message-enter">
+              <div className="glass rounded-2xl p-4 glass-hover">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-indigo-400">{msg.sender}</span>
+                  <span className="text-xs text-slate-600">{formatTime(msg.timestamp)}</span>
+                </div>
+                {msg.type === "text" ? (
+                  <div className="group relative">
+                    <p className="text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
+                      {msg.content}
+                    </p>
+                    <button
+                      onClick={() => handleCopyContent(msg.content)}
+                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100
+                                 text-xs text-slate-500 hover:text-indigo-400 transition-all p-1"
+                      title="复制"
+                    >
+                      <span role="img" aria-label="copy">📋</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={msg.content}
+                      alt="shared"
+                      className="max-w-full max-h-96 rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setPreviewImage(msg.content)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </main>
 
       {/* Input area */}
@@ -521,7 +520,7 @@ export default function RoomPage() {
             />
             <p className="text-slate-500 text-sm">
               {sending ? (
-                <span className="text-indigo-400">⏳ 发送中...</span>
+                <span className="text-indigo-400"><span role="img" aria-label="loading">⏳</span> 发送中...</span>
               ) : dragOver ? (
                 <span className="text-indigo-400">松开鼠标上传图片</span>
               ) : (

@@ -63,7 +63,7 @@ export default function ClipboardHome() {
         {mode === "home" && (
           <div className="text-center animate-fade-in">
             <div className="mb-8">
-              <div className="text-5xl mb-4">📋</div>
+              <span className="text-5xl mb-4 block" role="img" aria-label="clipboard">📋</span>
               <h1 className="text-4xl font-bold mb-3">
                 <span className="gradient-text">共享剪贴板</span>
               </h1>
@@ -79,13 +79,13 @@ export default function ClipboardHome() {
                 onClick={() => setMode("create")}
                 className="btn-primary text-lg px-8 py-4"
               >
-                ✨ 创建房间
+                <span role="img" aria-label="sparkle">✨</span> 创建房间
               </button>
               <button
                 onClick={() => setMode("join")}
                 className="btn-ghost text-lg px-8 py-4"
               >
-                🚪 加入房间
+                <span role="img" aria-label="door">🚪</span> 加入房间
               </button>
             </div>
 
@@ -96,7 +96,7 @@ export default function ClipboardHome() {
                 { icon: "⚡", title: "实时同步", desc: "内容即时更新" },
               ].map((f) => (
                 <div key={f.title} className="glass rounded-2xl p-5 text-center">
-                  <div className="text-2xl mb-2">{f.icon}</div>
+                  <span className="text-2xl mb-2 block" role="img">{f.icon}</span>
                   <h3 className="font-semibold text-sm">{f.title}</h3>
                   <p className="text-slate-500 text-xs mt-1">{f.desc}</p>
                 </div>
@@ -143,7 +143,7 @@ export default function ClipboardHome() {
                   disabled={loading}
                   className="btn-primary w-full text-lg py-4 mt-2 disabled:opacity-50"
                 >
-                  {loading ? "创建中..." : "🚀 创建房间"}
+                  {loading ? "创建中..." : <><span role="img" aria-label="rocket">🚀</span> 创建房间</>}
                 </button>
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function ClipboardHome() {
                   disabled={loading}
                   className="btn-primary w-full text-lg py-4 mt-2 disabled:opacity-50"
                 >
-                  {loading ? "查找中..." : "🚪 加入房间"}
+                  {loading ? "查找中..." : <><span role="img" aria-label="door">🚪</span> 加入房间</>}
                 </button>
               </div>
             </div>
