@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 interface Message {
@@ -16,6 +16,32 @@ interface RoomInfo {
   name: string;
   hasPassword: boolean;
   createdAt: number;
+}
+
+// Render text with clickable URLs
+function LinkedText({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        ) : (
+          <Fragment key={i}>{part}</Fragment>
+        )
+      )}
+    </>
+  );
 }
 
 export default function RoomPage() {
@@ -82,7 +108,6 @@ export default function RoomPage() {
     fetchRoom();
   }, [roomId]);
 
-  // Polling: only used to receive OTHER users' messages
   const fetchMessages = useCallback(async () => {
     if (!verified || isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -274,26 +299,32 @@ export default function RoomPage() {
     e.target.value = "";
   };
 
-  const handleCopyLink = async () => {
+  // Share: generate link + password text like cloud drive
+  const handleShare = async () => {
+    const link = window.location.href;
+    const shareText = room?.hasPassword
+      ? `链接: ${link}\n口令: ${passwordInput || "(请输入口令)"}`
+      : `链接: ${link}`;
+
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareText);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = window.location.href;
+      ta.value = shareText;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const handleCopyId = async () => {
     try { await navigator.clipboard.writeText(roomId); } catch { /* */ }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteRoom = async () => {
     try {
       const res = await fetch(`/api/room/${roomId}`, {
         method: "DELETE",
@@ -308,6 +339,39 @@ export default function RoomPage() {
       }
     } catch {
       setDeleteError("网络错误");
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const res = await fetch(
+        `/api/room/${roomId}/messages?messageId=${msgId}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (data.success) {
+        knownIdsRef.current.delete(msgId);
+        setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      }
+    } catch {
+      /* silent */
+    }
+  };
+
+  const handleClearMessages = async () => {
+    if (!confirm("确定清空所有消息？此操作不可撤销。")) return;
+    try {
+      const res = await fetch(`/api/room/${roomId}/messages`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages([]);
+        knownIdsRef.current.clear();
+        lastTimestampRef.current = 0;
+      }
+    } catch {
+      /* silent */
     }
   };
 
@@ -405,9 +469,18 @@ export default function RoomPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={handleCopyLink} className="btn-ghost text-xs px-3 py-1.5">
+            <button onClick={handleShare} className="btn-ghost text-xs px-3 py-1.5" title="复制分享链接+口令">
               {copied ? "✓ 已复制" : <><span role="img" aria-label="link">🔗</span>{" 分享"}</>}
             </button>
+            {messages.length > 0 && (
+              <button
+                onClick={handleClearMessages}
+                className="btn-ghost text-xs px-3 py-1.5 text-amber-400 hover:text-amber-300"
+                title="清空所有消息"
+              >
+                <span role="img" aria-label="clear">🧹</span>
+              </button>
+            )}
             {room?.hasPassword && (
               <button
                 onClick={() => setShowDelete(!showDelete)}
@@ -418,6 +491,14 @@ export default function RoomPage() {
             )}
           </div>
         </div>
+        {/* Share toast */}
+        {copied && (
+          <div className="max-w-4xl mx-auto mt-2 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 animate-slide-up">
+            {room?.hasPassword
+              ? "已复制分享链接和口令到剪贴板，可直接发给好友"
+              : "已复制分享链接到剪贴板"}
+          </div>
+        )}
         {showDelete && (
           <div className="max-w-4xl mx-auto mt-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl animate-slide-up">
             <p className="text-sm text-red-300 mb-3">删除房间将清除所有内容，不可撤销</p>
@@ -429,7 +510,7 @@ export default function RoomPage() {
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
               />
-              <button onClick={handleDelete} className="btn-danger text-sm">
+              <button onClick={handleDeleteRoom} className="btn-danger text-sm">
                 确认删除
               </button>
             </div>
@@ -464,16 +545,26 @@ export default function RoomPage() {
         )}
         <div className="space-y-3">
           {messages.map((msg) => (
-            <div key={msg.id} className="message-enter">
-              <div className="glass rounded-2xl p-4 glass-hover">
+            <div key={msg.id} className="message-enter group/msg">
+              <div className="glass rounded-2xl p-4 glass-hover relative">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-indigo-400">{msg.sender}</span>
-                  <span className="text-xs text-slate-600">{formatTime(msg.timestamp)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-600">{formatTime(msg.timestamp)}</span>
+                    <button
+                      onClick={() => handleDeleteMessage(msg.id)}
+                      className="opacity-0 group-hover/msg:opacity-100 text-xs text-slate-600
+                                 hover:text-red-400 transition-all p-0.5"
+                      title="删除此条"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
                 {msg.type === "text" ? (
                   <div className="group relative">
                     <p className="text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
-                      {msg.content}
+                      <LinkedText text={msg.content} />
                     </p>
                     <button
                       onClick={() => handleCopyContent(msg.content)}

@@ -12,6 +12,9 @@ const mockExpire = jest.fn().mockResolvedValue(1);
 const mockPipelineDel = jest.fn();
 const mockPipelineExec = jest.fn().mockResolvedValue([]);
 
+const mockLrem = jest.fn().mockResolvedValue(1);
+const mockDel = jest.fn().mockResolvedValue(1);
+
 jest.mock("@upstash/redis", () => {
   return {
     Redis: jest.fn().mockImplementation(() => ({
@@ -20,7 +23,8 @@ jest.mock("@upstash/redis", () => {
       rpush: (...args: unknown[]) => mockRpush(...args),
       lrange: (...args: unknown[]) => mockLrange(...args),
       expire: (...args: unknown[]) => mockExpire(...args),
-      del: jest.fn(),
+      lrem: (...args: unknown[]) => mockLrem(...args),
+      del: (...args: unknown[]) => mockDel(...args),
       pipeline: jest.fn(() => ({
         del: mockPipelineDel,
         exec: mockPipelineExec,
@@ -33,7 +37,7 @@ jest.mock("nanoid", () => ({
   nanoid: (len?: number) => "t" + "x".repeat((len || 8) - 1),
 }));
 
-import { createRoom, getRoom, deleteRoom, verifyPassword, addMessage, getMessages } from "@/lib/redis";
+import { createRoom, getRoom, deleteRoom, verifyPassword, addMessage, getMessages, deleteMessage, clearMessages } from "@/lib/redis";
 
 describe("createRoom", () => {
   beforeEach(() => jest.clearAllMocks());
@@ -151,5 +155,35 @@ describe("getMessages", () => {
   it("returns empty array for empty room", async () => {
     mockLrange.mockResolvedValueOnce([]);
     expect(await getMessages("r1")).toHaveLength(0);
+  });
+});
+
+describe("deleteMessage", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("deletes a message by ID", async () => {
+    const msgJson = JSON.stringify({ id: "m1", type: "text", content: "hi", timestamp: 100, sender: "A" });
+    mockLrange.mockResolvedValueOnce([msgJson]);
+
+    const result = await deleteMessage("r1", "m1");
+    expect(result).toBe(true);
+    expect(mockLrem).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns false when message not found", async () => {
+    mockLrange.mockResolvedValueOnce([
+      JSON.stringify({ id: "m1", type: "text", content: "hi", timestamp: 100, sender: "A" }),
+    ]);
+    const result = await deleteMessage("r1", "nonexistent");
+    expect(result).toBe(false);
+  });
+});
+
+describe("clearMessages", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("clears all messages for a room", async () => {
+    const result = await clearMessages("r1");
+    expect(result).toBe(true);
   });
 });

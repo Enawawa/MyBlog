@@ -99,4 +99,28 @@ export async function getMessages(
   return messages;
 }
 
+export async function deleteMessage(
+  roomId: string,
+  messageId: string
+): Promise<boolean> {
+  const raw = await redis.lrange(`${MESSAGES_PREFIX}${roomId}`, 0, -1);
+  for (const item of raw) {
+    const msg: Message = typeof item === "string" ? JSON.parse(item) : item;
+    if (msg.id === messageId) {
+      await redis.lrem(
+        `${MESSAGES_PREFIX}${roomId}`,
+        1,
+        typeof item === "string" ? item : JSON.stringify(item)
+      );
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function clearMessages(roomId: string): Promise<boolean> {
+  await redis.del(`${MESSAGES_PREFIX}${roomId}`);
+  return true;
+}
+
 export default redis;

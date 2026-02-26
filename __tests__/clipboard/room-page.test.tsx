@@ -71,7 +71,7 @@ async function enterRoom(opts: { hasPassword?: boolean; messages?: object[] } = 
   await act(async () => { render(<RoomPage />); });
   await waitFor(() => {
     if (messages.length > 0) {
-      expect(screen.getByText((messages[0] as { content: string }).content || "shared")).toBeInTheDocument();
+      expect(screen.getByText("测试房间")).toBeInTheDocument();
     } else {
       expect(screen.getByText("还没有内容")).toBeInTheDocument();
     }
@@ -225,20 +225,44 @@ describe("Room Page — Room Header & Info", () => {
   });
 });
 
-describe("Room Page — Copy Link & Copy Room ID", () => {
+describe("Room Page — Share (link + password)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     navigator.clipboard.writeText = mockWriteText;
   });
 
-  it("copies link and shows confirmation", async () => {
+  it("copies share link for open room (no password)", async () => {
     const user = userEvent.setup();
     await enterRoom();
 
     await user.click(screen.getByRole("button", { name: /分享/ }));
 
-    expect(mockWriteText).toHaveBeenCalledWith(expect.stringContaining("localhost"));
+    expect(mockWriteText).toHaveBeenCalledWith(
+      expect.stringContaining("链接:")
+    );
     await waitFor(() => expect(screen.getByText("✓ 已复制")).toBeInTheDocument());
+    expect(screen.getByText("已复制分享链接到剪贴板")).toBeInTheDocument();
+  });
+
+  it("copies share link + password for protected room", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce(roomOk(true))
+      .mockResolvedValueOnce(verifyOk())
+      .mockResolvedValueOnce(msgsOk([]));
+
+    await act(async () => { render(<RoomPage />); });
+    await user.type(screen.getByPlaceholderText("请输入房间口令..."), "mypass{Enter}");
+    await waitFor(() => expect(screen.getByText("还没有内容")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /分享/ }));
+
+    expect(mockWriteText).toHaveBeenCalledWith(
+      expect.stringContaining("口令: mypass")
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/已复制分享链接和口令/)).toBeInTheDocument();
+    });
   });
 
   it("copies room ID when clicking code element", async () => {
@@ -675,8 +699,10 @@ describe("Room Page — Image Preview Modal", () => {
     await user.click(screen.getByAltText("shared"));
     expect(screen.getByAltText("preview")).toBeInTheDocument();
 
-    // Click the close button
-    await user.click(screen.getByText("✕"));
+    // Click the close button (the one in the preview overlay, has specific class)
+    const closeBtns = screen.getAllByText("✕");
+    const previewClose = closeBtns.find(el => el.className.includes("absolute top-6"));
+    await user.click(previewClose!);
     expect(screen.queryByAltText("preview")).not.toBeInTheDocument();
   });
 });
@@ -756,16 +782,111 @@ describe("Room Page — Polling & Dedup", () => {
     mockFetch
       .mockResolvedValueOnce(roomOk(false))
       .mockResolvedValueOnce(msgsOk([msg1]))
-      .mockResolvedValueOnce(msgsOk([msg2])); // 3-second poll returns new msg
+      .mockResolvedValueOnce(msgsOk([msg2]));
 
     await act(async () => { render(<RoomPage />); });
     await waitFor(() => expect(screen.getByText("First")).toBeInTheDocument());
 
-    // Advance 3 seconds to trigger poll
     await act(async () => { jest.advanceTimersByTime(3000); });
 
     await waitFor(() => expect(screen.getByText("From others")).toBeInTheDocument());
 
     jest.useRealTimers();
+  });
+});
+
+describe("Room Page — URL Detection in Text", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("renders URLs as clickable links", async () => {
+    const msg = makeTextMsg("url1", "Visit https://example.com for more");
+    await enterRoom({ messages: [msg] });
+
+    const link = screen.getByText("https://example.com");
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "https://example.com");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("renders plain text without links normally", async () => {
+    const msg = makeTextMsg("url2", "No links here");
+    await enterRoom({ messages: [msg] });
+    expect(screen.getByText("No links here")).toBeInTheDocument();
+  });
+
+  it("handles multiple URLs in one message", async () => {
+    const msg = makeTextMsg("url3", "See https://a.com and https://b.com");
+    await enterRoom({ messages: [msg] });
+
+    expect(screen.getByText("https://a.com")).toHaveAttribute("href", "https://a.com");
+    expect(screen.getByText("https://b.com")).toHaveAttribute("href", "https://b.com");
+  });
+});
+
+describe("Room Page — Delete Single Message", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("deletes a single message from the list", async () => {
+    const msg = makeTextMsg("del1", "Delete me");
+    mockFetch
+      .mockResolvedValueOnce(roomOk(false))
+      .mockResolvedValueOnce(msgsOk([msg]))
+      .mockResolvedValue(msgsOk([]));
+
+    await act(async () => { render(<RoomPage />); });
+    await waitFor(() => expect(screen.getByText("Delete me")).toBeInTheDocument());
+
+    // Mock the delete API call
+    mockFetch.mockResolvedValueOnce({ json: async () => ({ success: true }) });
+
+    const deleteBtn = screen.getByTitle("删除此条");
+    fireEvent.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("Room Page — Clear All Messages", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("clears all messages after confirmation", async () => {
+    const msgs = [
+      makeTextMsg("clr1", "Msg One"),
+      makeTextMsg("clr2", "Msg Two"),
+    ];
+    mockFetch
+      .mockResolvedValueOnce(roomOk(false))
+      .mockResolvedValueOnce(msgsOk(msgs))
+      .mockResolvedValue(msgsOk([]));
+
+    await act(async () => { render(<RoomPage />); });
+    await waitFor(() => expect(screen.getByText("Msg One")).toBeInTheDocument());
+
+    // Mock confirm dialog
+    window.confirm = jest.fn().mockReturnValue(true);
+    mockFetch.mockResolvedValueOnce({ json: async () => ({ success: true }) });
+
+    const clearBtn = screen.getByTitle("清空所有消息");
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Msg One")).not.toBeInTheDocument();
+      expect(screen.queryByText("Msg Two")).not.toBeInTheDocument();
+      expect(screen.getByText("还没有内容")).toBeInTheDocument();
+    });
+  });
+
+  it("does not clear when confirm is cancelled", async () => {
+    const msg = makeTextMsg("clr3", "Keep me");
+    await enterRoom({ messages: [msg] });
+
+    window.confirm = jest.fn().mockReturnValue(false);
+
+    const clearBtn = screen.getByTitle("清空所有消息");
+    fireEvent.click(clearBtn);
+
+    expect(screen.getByText("Keep me")).toBeInTheDocument();
   });
 });
