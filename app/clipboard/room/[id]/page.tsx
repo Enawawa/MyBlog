@@ -43,10 +43,22 @@ export default function RoomPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFetchingRef = useRef(false);
+  const knownIdsRef = useRef<Set<string>>(new Set());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const appendMessage = useCallback((msg: Message) => {
+    if (knownIdsRef.current.has(msg.id)) return;
+    knownIdsRef.current.add(msg.id);
+    setMessages((prev) => [...prev, msg]);
+    if (msg.timestamp > lastTimestampRef.current) {
+      lastTimestampRef.current = msg.timestamp;
+    }
+    setTimeout(scrollToBottom, 100);
+  }, []);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -68,8 +80,10 @@ export default function RoomPage() {
     fetchRoom();
   }, [roomId]);
 
+  // Polling: only used to receive OTHER users' messages
   const fetchMessages = useCallback(async () => {
-    if (!verified) return;
+    if (!verified || isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const url = lastTimestampRef.current
         ? `/api/room/${roomId}/messages?after=${lastTimestampRef.current}`
@@ -77,17 +91,24 @@ export default function RoomPage() {
       const res = await fetch(url);
       const data = await res.json();
       if (data.success && data.messages.length > 0) {
-        if (lastTimestampRef.current === 0) {
-          setMessages(data.messages);
-        } else {
-          setMessages((prev) => [...prev, ...data.messages]);
+        const newMsgs = (data.messages as Message[]).filter(
+          (m) => !knownIdsRef.current.has(m.id)
+        );
+        if (newMsgs.length > 0) {
+          for (const m of newMsgs) knownIdsRef.current.add(m.id);
+          setMessages((prev) => [...prev, ...newMsgs]);
+          lastTimestampRef.current =
+            data.messages[data.messages.length - 1].timestamp;
+          setTimeout(scrollToBottom, 100);
+        } else if (lastTimestampRef.current === 0 && data.messages.length > 0) {
+          lastTimestampRef.current =
+            data.messages[data.messages.length - 1].timestamp;
         }
-        lastTimestampRef.current =
-          data.messages[data.messages.length - 1].timestamp;
-        setTimeout(scrollToBottom, 100);
       }
     } catch {
       /* silent */
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [roomId, verified]);
 
@@ -133,7 +154,7 @@ export default function RoomPage() {
       const data = await res.json();
       if (data.success) {
         setTextInput("");
-        await fetchMessages();
+        appendMessage(data.message);
       }
     } catch {
       setError("发送失败");
@@ -157,7 +178,7 @@ export default function RoomPage() {
         });
         const data = await res.json();
         if (data.success) {
-          await fetchMessages();
+          appendMessage(data.message);
         } else {
           setError(data.error || "图片发送失败");
         }
@@ -167,7 +188,7 @@ export default function RoomPage() {
         setSending(false);
       }
     },
-    [roomId, nickname, fetchMessages]
+    [roomId, nickname, appendMessage]
   );
 
   useEffect(() => {
@@ -209,7 +230,7 @@ export default function RoomPage() {
             }),
           });
           const data = await res.json();
-          if (data.success) await fetchMessages();
+          if (data.success) appendMessage(data.message);
         } catch {
           /* ignore */
         } finally {
@@ -219,7 +240,7 @@ export default function RoomPage() {
     };
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [verified, roomId, nickname, fetchMessages, sendImage]);
+  }, [verified, roomId, nickname, appendMessage, sendImage]);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
