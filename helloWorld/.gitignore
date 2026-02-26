@@ -1,9 +1,0 @@
-node_modules/
-.next/
-out/
-.env
-.env.local
-.env.production.local
-.env.development.local
-npm-debug.log*
-.vercel
