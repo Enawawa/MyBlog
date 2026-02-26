@@ -116,7 +116,6 @@ describe("addMessage", () => {
     expect(msg.sender).toBe("Alice");
     expect(msg.timestamp).toBeDefined();
     expect(mockRpush).toHaveBeenCalledTimes(1);
-    expect(mockExpire).toHaveBeenCalledTimes(1);
   });
 
   it("adds an image message", async () => {

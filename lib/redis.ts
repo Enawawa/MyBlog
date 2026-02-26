@@ -22,7 +22,6 @@ export interface Message {
 
 const ROOM_PREFIX = "room:";
 const MESSAGES_PREFIX = "messages:";
-const ROOM_TTL = 60 * 60 * 24 * 7; // 7 days
 
 export async function createRoom(
   name: string,
@@ -37,9 +36,7 @@ export async function createRoom(
     createdAt: Date.now(),
   };
 
-  await redis.set(`${ROOM_PREFIX}${id}`, JSON.stringify(room), {
-    ex: ROOM_TTL,
-  });
+  await redis.set(`${ROOM_PREFIX}${id}`, JSON.stringify(room));
 
   return room;
 }
@@ -83,8 +80,6 @@ export async function addMessage(
     `${MESSAGES_PREFIX}${roomId}`,
     JSON.stringify(fullMessage)
   );
-
-  await redis.expire(`${MESSAGES_PREFIX}${roomId}`, ROOM_TTL);
 
   return fullMessage;
 }

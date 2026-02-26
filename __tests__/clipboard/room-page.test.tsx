@@ -41,7 +41,7 @@ function sendFail(error = "发送失败") {
   return { json: async () => ({ success: false, error }) };
 }
 function roomNotFound() {
-  return { json: async () => ({ success: false, error: "房间不存在" }) };
+  return { status: 404, json: async () => ({ success: false, error: "房间不存在" }) };
 }
 function verifyOk() {
   return { json: async () => ({ success: true, verified: true }) };
@@ -93,7 +93,7 @@ describe("Room Page — Loading & Error States", () => {
     mockFetch.mockResolvedValueOnce(roomNotFound());
     await act(async () => { render(<RoomPage />); });
     expect(screen.getByText("无法进入房间")).toBeInTheDocument();
-    expect(screen.getByText("房间不存在或已过期")).toBeInTheDocument();
+    expect(screen.getByText("房间不存在，请检查房间号")).toBeInTheDocument();
   });
 
   it("shows network error when fetch throws", async () => {

@@ -68,8 +68,10 @@ export default function RoomPage() {
         if (data.success) {
           setRoom(data.room);
           if (!data.room.hasPassword) setVerified(true);
+        } else if (res.status === 404) {
+          setError("房间不存在，请检查房间号");
         } else {
-          setError("房间不存在或已过期");
+          setError(data.error || "服务器错误，请稍后再试");
         }
       } catch {
         setError("网络错误");

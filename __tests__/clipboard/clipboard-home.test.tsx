@@ -204,7 +204,8 @@ describe("Clipboard Home Page", () => {
   it("shows error for non-existent room", async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValueOnce({
-      json: async () => ({ success: false, error: "not found" }),
+      status: 404,
+      json: async () => ({ success: false, error: "房间不存在" }),
     });
 
     render(<ClipboardHome />);
@@ -213,7 +214,7 @@ describe("Clipboard Home Page", () => {
     const btns = screen.getAllByRole("button", { name: /加入房间/ });
     await user.click(btns[btns.length - 1]);
 
-    await waitFor(() => expect(screen.getByText("房间不存在")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("房间不存在，请检查房间号是否正确")).toBeInTheDocument());
   });
 
   it("shows network error when join fetch throws", async () => {
