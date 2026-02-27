@@ -5,10 +5,33 @@ import { useParams, useRouter } from "next/navigation";
 
 interface Message {
   id: string;
-  type: "text" | "image";
+  type: "text" | "image" | "video" | "file";
   content: string;
   timestamp: number;
   sender: string;
+  fileName?: string;
+}
+
+// 文件类型分类
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/tiff", "image/heic", "image/heif"];
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo", "video/x-matroska"];
+const DOC_TYPES = [
+  "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain", "text/csv",
+];
+
+function isImageType(type: string) {
+  return type.startsWith("image/") || IMAGE_TYPES.includes(type);
+}
+function isVideoType(type: string) {
+  return type.startsWith("video/") || VIDEO_TYPES.includes(type);
+}
+function isDocType(type: string) {
+  return DOC_TYPES.includes(type) || type.startsWith("application/") || type.startsWith("text/");
+}
+function isHeic(type: string) {
+  return type === "image/heic" || type === "image/heif";
 }
 
 interface RoomInfo {
@@ -64,7 +87,7 @@ export default function RoomPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: "image" | "video" } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<number>(0);
@@ -190,16 +213,15 @@ export default function RoomPage() {
     }
   };
 
-  const sendImage = useCallback(
-    async (dataUrl: string) => {
+  const sendMedia = useCallback(
+    async (payload: { type: "image" | "video" | "file"; content: string; fileName?: string }) => {
       setSending(true);
       try {
         const res = await fetch(`/api/room/${roomId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: "image",
-            content: dataUrl,
+            ...payload,
             sender: nickname || "匿名用户",
           }),
         });
@@ -207,10 +229,10 @@ export default function RoomPage() {
         if (data.success) {
           appendMessage(data.message);
         } else {
-          setError(data.error || "图片发送失败");
+          setError(data.error || "发送失败");
         }
       } catch {
-        setError("图片发送失败");
+        setError("发送失败");
       } finally {
         setSending(false);
       }
@@ -218,27 +240,126 @@ export default function RoomPage() {
     [roomId, nickname, appendMessage]
   );
 
+  // 从 File/Blob 读取并发送（支持 HEIC 转 JPEG）
+  const processImageFile = useCallback(
+    async (file: File | Blob, onSuccess: () => void) => {
+      const type = file instanceof File ? file.type : (file as Blob).type;
+      if (isHeic(type)) {
+        try {
+          const { default: heic2any } = await import("heic2any");
+          const blob = file instanceof File ? file : new File([file], "image.heic", { type });
+          const converted = await heic2any({ blob, toType: "image/jpeg", quality: 0.9 });
+          const result = Array.isArray(converted) ? converted[0] : converted;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const d = ev.target?.result as string;
+            if (d) sendMedia({ type: "image", content: d });
+            onSuccess();
+          };
+          reader.onerror = onSuccess;
+          reader.readAsDataURL(result);
+        } catch {
+          setError("HEIC 转换失败，请尝试其他格式");
+          onSuccess();
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const d = ev.target?.result as string;
+          if (d) sendMedia({ type: "image", content: d });
+          onSuccess();
+        };
+        reader.onerror = onSuccess;
+        reader.readAsDataURL(file);
+      }
+    },
+    [sendMedia]
+  );
+
+  const processVideoFile = useCallback(
+    (file: File | Blob, onSuccess: () => void) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const d = ev.target?.result as string;
+        if (d) sendMedia({ type: "video", content: d, fileName: file instanceof File ? file.name : undefined });
+        onSuccess();
+      };
+      reader.onerror = onSuccess;
+      reader.readAsDataURL(file);
+    },
+    [sendMedia]
+  );
+
+  const processDocFile = useCallback(
+    (file: File | Blob, onSuccess: () => void) => {
+      const reader = new FileReader();
+      const name = file instanceof File ? file.name : "file";
+      reader.onload = (ev) => {
+        const d = ev.target?.result as string;
+        if (d) sendMedia({ type: "file", content: d, fileName: name });
+        onSuccess();
+      };
+      reader.onerror = onSuccess;
+      reader.readAsDataURL(file);
+    },
+    [sendMedia]
+  );
+
   useEffect(() => {
     if (!verified) return;
     const handlePaste = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const d = ev.target?.result as string;
-              if (d) sendImage(d);
-            };
-            reader.readAsDataURL(file);
+      const cd = e.clipboardData;
+      let imageHandled = false;
+
+      // 1. 优先从 clipboardData.items 读取（标准路径）
+      const items = cd?.items;
+      if (items) {
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              imageHandled = true;
+              processImageFile(file, () => {});
+              return;
+            }
           }
-          return;
         }
       }
-      const text = e.clipboardData?.getData("text");
+
+      // 2. iOS/微信输入法跨设备粘贴时 items 可能为空，尝试 clipboardData.files
+      const files = cd?.files;
+      if (files && files.length > 0) {
+        for (const file of Array.from(files)) {
+          if (file.type.startsWith("image/")) {
+            e.preventDefault();
+            imageHandled = true;
+            processImageFile(file, () => {});
+            return;
+          }
+        }
+      }
+
+      // 3. 若 paste 事件的 clipboardData 无图片，尝试 Async Clipboard API（iOS 13.4+ 更可靠）
+      if (!imageHandled && navigator.clipboard?.read) {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const item of clipboardItems) {
+            for (const type of item.types) {
+              if (type.startsWith("image/")) {
+                e.preventDefault();
+                const blob = await item.getType(type);
+                processImageFile(blob, () => {});
+                return;
+              }
+            }
+          }
+        } catch {
+          /* 权限或兼容性失败，忽略 */
+        }
+      }
+
+      const text = cd?.getData("text");
       if (
         text &&
         document.activeElement?.tagName !== "INPUT" &&
@@ -267,34 +388,34 @@ export default function RoomPage() {
     };
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [verified, roomId, nickname, appendMessage, sendImage]);
+  }, [verified, roomId, nickname, appendMessage, processImageFile]);
+
+  const processFile = useCallback(
+    (file: File) => {
+      const type = file.type || "";
+      if (isImageType(type)) {
+        processImageFile(file, () => {});
+      } else if (isVideoType(type)) {
+        processVideoFile(file, () => {});
+      } else if (isDocType(type) || type === "") {
+        processDocFile(file, () => {});
+      }
+    },
+    [processImageFile, processVideoFile, processDocFile]
+  );
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     for (const file of Array.from(e.dataTransfer.files)) {
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const d = ev.target?.result as string;
-          if (d) sendImage(d);
-        };
-        reader.readAsDataURL(file);
-      }
+      processFile(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     for (const file of Array.from(e.target.files)) {
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const d = ev.target?.result as string;
-          if (d) sendImage(d);
-        };
-        reader.readAsDataURL(file);
-      }
+      processFile(file);
     }
     e.target.value = "";
   };
@@ -540,7 +661,7 @@ export default function RoomPage() {
           <div className="text-center py-20 text-slate-500">
             <span className="text-5xl mb-4 block" role="img" aria-label="empty">📭</span>
             <p className="text-lg">还没有内容</p>
-            <p className="text-sm mt-1">粘贴文字或图片来开始分享吧</p>
+            <p className="text-sm mt-1">粘贴、拖拽或上传文字/图片/视频/文档来开始分享</p>
           </div>
         )}
         <div className="space-y-3">
@@ -575,17 +696,73 @@ export default function RoomPage() {
                       <span role="img" aria-label="copy">📋</span>
                     </button>
                   </div>
-                ) : (
+                ) : msg.type === "image" ? (
                   <div className="mt-1">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={msg.content}
                       alt="shared"
-                      className="max-w-full max-h-96 rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setPreviewImage(msg.content)}
+                      className="max-w-full max-h-96 rounded-xl cursor-pointer hover:opacity-90 transition-opacity object-contain"
+                      onClick={() => setPreviewMedia({ url: msg.content, type: "image" })}
                     />
                   </div>
-                )}
+                ) : msg.type === "video" ? (
+                  <div className="mt-1 relative group/vid">
+                    <video
+                      src={msg.content}
+                      controls
+                      className="max-w-full max-h-96 rounded-xl"
+                      preload="metadata"
+                    />
+                    <button
+                      onClick={() => setPreviewMedia({ url: msg.content, type: "video" })}
+                      className="absolute bottom-2 right-2 opacity-0 group-hover/vid:opacity-100 bg-black/60 hover:bg-black/80 text-white text-xs px-2 py-1 rounded transition-opacity"
+                      title="全屏预览"
+                    >
+                      ⛶ 全屏
+                    </button>
+                    {msg.fileName && (
+                      <p className="text-xs text-slate-500 mt-1 truncate" title={msg.fileName}>{msg.fileName}</p>
+                    )}
+                  </div>
+                ) : msg.type === "file" ? (
+                  <div className="mt-1">
+                    {msg.fileName?.toLowerCase().endsWith(".pdf") ? (
+                      <div className="space-y-2">
+                        <object
+                          data={msg.content}
+                          type="application/pdf"
+                          className="w-full min-h-[300px] max-h-96 rounded-xl bg-slate-900"
+                          title={msg.fileName}
+                        >
+                          <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                            <span className="text-2xl" role="img" aria-label="pdf">📄</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-slate-200 truncate">{msg.fileName}</p>
+                              <a href={msg.content} download={msg.fileName} className="text-xs text-indigo-400 hover:text-indigo-300 underline">下载 PDF</a>
+                            </div>
+                          </div>
+                        </object>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                        <span className="text-2xl" role="img" aria-label="file">📄</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-slate-200 truncate" title={msg.fileName || "文件"}>
+                            {msg.fileName || "未命名文件"}
+                          </p>
+                          <a
+                            href={msg.content}
+                            download={msg.fileName}
+                            className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+                          >
+                            下载
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
@@ -597,16 +774,19 @@ export default function RoomPage() {
       <div className="sticky bottom-0 glass border-b-0 border-x-0 px-4 sm:px-8 py-4">
         <div className="max-w-4xl mx-auto">
           <div
+            role="button"
+            tabIndex={0}
             className={`paste-zone rounded-xl p-4 mb-3 text-center cursor-pointer ${dragOver ? "dragover" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.heic,.heif"
               className="hidden"
               onChange={handleFileSelect}
               multiple
@@ -615,12 +795,11 @@ export default function RoomPage() {
               {sending ? (
                 <span className="text-indigo-400"><span role="img" aria-label="loading">⏳</span> 发送中...</span>
               ) : dragOver ? (
-                <span className="text-indigo-400">松开鼠标上传图片</span>
+                <span className="text-indigo-400">松开鼠标上传文件</span>
               ) : (
                 <>
-                  <span className="text-indigo-400">Ctrl+V</span> 粘贴文字/图片 ·
-                  拖拽图片到这里 · 或
-                  <span className="text-indigo-400"> 点击上传</span>
+                  <span className="text-indigo-400">Ctrl+V</span> 粘贴 ·
+                  拖拽或 <span className="text-indigo-400">点击上传</span> 图片/视频/文档
                 </>
               )}
             </p>
@@ -651,21 +830,31 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Image preview */}
-      {previewImage && (
+      {/* 图片/视频预览 */}
+      {previewMedia && (
         <div
           className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setPreviewImage(null)}
+          onClick={() => setPreviewMedia(null)}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={previewImage}
-            alt="preview"
-            className="max-w-full max-h-full object-contain rounded-lg"
+          {previewMedia.type === "image" ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={previewMedia.url}
+              alt="preview"
+              className="max-w-full max-h-full object-contain rounded-lg"
           />
+          ) : (
+            <video
+              src={previewMedia.url}
+              controls
+              autoPlay
+              className="max-w-full max-h-full rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
           <button
             className="absolute top-6 right-6 text-white/60 hover:text-white text-3xl transition-colors"
-            onClick={() => setPreviewImage(null)}
+            onClick={() => setPreviewMedia(null)}
           >
             ✕
           </button>

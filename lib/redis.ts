@@ -14,10 +14,12 @@ export interface Room {
 
 export interface Message {
   id: string;
-  type: "text" | "image";
+  type: "text" | "image" | "video" | "file";
   content: string;
   timestamp: number;
   sender: string;
+  /** 文件名，用于 video/file 类型展示与下载 */
+  fileName?: string;
 }
 
 const ROOM_PREFIX = "room:";
