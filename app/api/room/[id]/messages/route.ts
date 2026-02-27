@@ -46,7 +46,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { type, content, sender } = body;
+    const { type, content, sender, fileName } = body;
 
     if (!type || !content) {
       return NextResponse.json(
@@ -55,9 +55,25 @@ export async function POST(
       );
     }
 
-    if (type === "image" && content.length > 4 * 1024 * 1024) {
+    const MAX_IMAGE = 4 * 1024 * 1024;   // 4MB
+    const MAX_VIDEO = 15 * 1024 * 1024;  // 15MB
+    const MAX_FILE = 10 * 1024 * 1024;   // 10MB
+
+    if (type === "image" && content.length > MAX_IMAGE) {
       return NextResponse.json(
-        { success: false, error: "图片大小不能超过 3MB" },
+        { success: false, error: "图片大小不能超过 4MB" },
+        { status: 400 }
+      );
+    }
+    if (type === "video" && content.length > MAX_VIDEO) {
+      return NextResponse.json(
+        { success: false, error: "视频大小不能超过 15MB" },
+        { status: 400 }
+      );
+    }
+    if (type === "file" && content.length > MAX_FILE) {
+      return NextResponse.json(
+        { success: false, error: "文件大小不能超过 10MB" },
         { status: 400 }
       );
     }
@@ -66,6 +82,7 @@ export async function POST(
       type,
       content,
       sender: sender || "匿名用户",
+      ...(fileName && { fileName }),
     });
 
     return NextResponse.json({ success: true, message });
