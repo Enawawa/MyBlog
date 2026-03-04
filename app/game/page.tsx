@@ -5,10 +5,10 @@ import Link from "next/link";
 
 // 游戏常量
 const GRAVITY = 0.5;
-const JUMP_STRENGTH = -9;
+const JUMP_STRENGTH = -6;  // 调小跳跃高度
 const PIPE_GAP = 150;
 const PIPE_WIDTH = 55;
-const PIPE_SPEED = 2.5;
+const PIPE_SPEED = 1.5;    // 降低障碍前进速度
 const PIPE_SPAWN_INTERVAL = 2000;
 
 type GameState = "idle" | "playing" | "gameover";
@@ -27,7 +27,9 @@ export default function GamePage() {
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [pipes, setPipes] = useState<Pipe[]>([]);
   const [highScore, setHighScore] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const gameAreaRef = useRef<HTMLDivElement>(null);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
   const pipeIdRef = useRef(0);
   const animationRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
@@ -172,11 +174,33 @@ export default function GamePage() {
     }
   }, []);
 
+  // 全屏切换
+  const toggleFullscreen = useCallback(() => {
+    const el = fullscreenRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 safe-area-pb">
-      <div className="w-full max-w-md">
+      <div
+        ref={fullscreenRef}
+        className="flex flex-col w-full max-w-md h-[85vh] max-h-[800px] rounded-2xl overflow-hidden bg-[var(--bg-primary)] [&:fullscreen]:max-w-none [&:fullscreen]:max-h-none [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:rounded-none"
+      >
         {/* 标题和返回 */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between px-2 py-2 shrink-0">
           <Link
             href="/"
             className="text-slate-400 hover:text-white transition-colors text-sm"
@@ -184,19 +208,30 @@ export default function GamePage() {
             ← 返回
           </Link>
           <h1 className="text-xl font-bold gradient-text">🎮 飞跃小鸟</h1>
-          <div className="w-12" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleFullscreen();
+            }}
+            className="text-slate-400 hover:text-white transition-colors text-sm px-2 py-1"
+            title={isFullscreen ? "退出全屏" : "全屏"}
+          >
+            {isFullscreen ? "⛶ 退出" : "⛶ 全屏"}
+          </button>
         </div>
 
         {/* 分数显示 */}
-        <div className="flex justify-between items-center mb-2 text-sm">
+        <div className="flex justify-between items-center px-2 mb-2 text-sm shrink-0">
           <span className="text-slate-400">当前: <span className="text-white font-bold">{score}</span></span>
           <span className="text-slate-400">最高: <span className="text-amber-400 font-bold">{highScore}</span></span>
         </div>
 
-        {/* 游戏区域 - 支持触摸 */}
+        {/* 游戏区域 - 支持触摸，全屏时占满剩余空间 */}
         <div
           ref={gameAreaRef}
-          className="relative w-full aspect-[4/5] max-h-[70vh] rounded-2xl overflow-hidden glass border-2 border-white/10 cursor-pointer select-none touch-none [-webkit-tap-highlight-color:transparent]"
+          className="relative flex-1 min-h-0 w-full rounded-2xl overflow-hidden glass border-2 border-white/10 cursor-pointer select-none touch-none [-webkit-tap-highlight-color:transparent]"
           style={{ backgroundColor: "#0c4a6e" }}
           onClick={jump}
           onTouchStart={(e) => {
@@ -309,7 +344,7 @@ export default function GamePage() {
         </div>
 
         {/* 操作说明 */}
-        <p className="text-center text-slate-500 text-sm mt-4">
+        <p className="text-center text-slate-500 text-sm py-2 shrink-0">
           点击屏幕 / 触摸 / 空格键 让小鸟跳跃
         </p>
       </div>
