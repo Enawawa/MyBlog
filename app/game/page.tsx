@@ -5,7 +5,8 @@ import Link from "next/link";
 
 // 游戏常量
 const GRAVITY = 0.5;
-const JUMP_STRENGTH = -1;  // 极小跳跃，需频繁点击
+const JUMP_STRENGTH_MIN = -1;  // 最小跳跃（跳得低）
+const JUMP_STRENGTH_MAX = -9;  // 最大跳跃（跳得高）
 const PIPE_GAP = 220;      // 加大障碍间距
 const PIPE_WIDTH = 55;
 const PIPE_SPEED = 1.5;
@@ -31,6 +32,7 @@ export default function GamePage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [combo, setCombo] = useState(0);           // 连击数
   const [milestone, setMilestone] = useState<number | null>(null);  // 里程碑庆祝
+  const [jumpStrength, setJumpStrength] = useState(-5);  // 跳跃高度 -1~-9，用户可调
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const pipeIdRef = useRef(0);
@@ -42,24 +44,27 @@ export default function GamePage() {
   const gameStateRef = useRef(gameState);
   const scoreRef = useRef(0);
   const comboRef = useRef(0);
+  const jumpStrengthRef = useRef(-5);
 
   birdYRef.current = birdY;
   birdVelRef.current = birdVelocity;
   gameStateRef.current = gameState;
   scoreRef.current = score;
   comboRef.current = combo;
+  jumpStrengthRef.current = jumpStrength;
 
   const getGameHeight = useCallback(() => gameAreaRef.current?.clientHeight ?? 500, []);
   const getGameWidth = useCallback(() => gameAreaRef.current?.clientWidth ?? 400, []);
 
   const jump = useCallback(() => {
+    const strength = jumpStrengthRef.current;
     if (gameStateRef.current === "idle") {
       setGameState("playing");
-      setBirdVelocity(JUMP_STRENGTH);
-      birdVelRef.current = JUMP_STRENGTH;
+      setBirdVelocity(strength);
+      birdVelRef.current = strength;
     } else if (gameStateRef.current === "playing") {
-      setBirdVelocity(JUMP_STRENGTH);
-      birdVelRef.current = JUMP_STRENGTH;
+      setBirdVelocity(strength);
+      birdVelRef.current = strength;
     }
   }, []);
 
@@ -255,6 +260,24 @@ export default function GamePage() {
             {isFullscreen ? "⛶ 退出" : "⛶ 全屏"}
           </button>
         </div>
+
+        {/* 跳跃高度调节 - 仅在开始前可调 */}
+        {(gameState === "idle" || gameState === "gameover") && (
+          <div className="px-2 py-2 mb-2 shrink-0">
+            <label className="flex items-center gap-3 text-sm text-slate-400">
+              <span className="shrink-0">跳跃高度:</span>
+              <input
+                type="range"
+                min={JUMP_STRENGTH_MIN}
+                max={JUMP_STRENGTH_MAX}
+                value={jumpStrength}
+                onChange={(e) => setJumpStrength(Number(e.target.value))}
+                className="flex-1 h-2 accent-amber-500"
+              />
+              <span className="text-amber-400 font-mono w-8">{-jumpStrength}</span>
+            </label>
+          </div>
+        )}
 
         {/* 分数显示 */}
         <div className="flex justify-between items-center px-2 mb-2 text-sm shrink-0 gap-2">
