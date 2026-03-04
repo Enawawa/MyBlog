@@ -5,11 +5,11 @@ import Link from "next/link";
 
 // 游戏常量
 const GRAVITY = 0.5;
-const JUMP_STRENGTH = -6;  // 调小跳跃高度
-const PIPE_GAP = 150;
+const JUMP_STRENGTH = -1;  // 极小跳跃，需频繁点击
+const PIPE_GAP = 220;      // 加大障碍间距
 const PIPE_WIDTH = 55;
-const PIPE_SPEED = 1.5;    // 降低障碍前进速度
-const PIPE_SPAWN_INTERVAL = 2000;
+const PIPE_SPEED = 1.5;
+const PIPE_SPAWN_INTERVAL = 2800;  // 管道生成间隔加大
 
 type GameState = "idle" | "playing" | "gameover";
 
@@ -18,6 +18,7 @@ interface Pipe {
   x: number;
   topHeight: number;
   passed: boolean;
+  isGolden?: boolean;  // 金色管道，通过得双倍分
 }
 
 export default function GamePage() {
@@ -28,6 +29,8 @@ export default function GamePage() {
   const [pipes, setPipes] = useState<Pipe[]>([]);
   const [highScore, setHighScore] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [combo, setCombo] = useState(0);           // 连击数
+  const [milestone, setMilestone] = useState<number | null>(null);  // 里程碑庆祝
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const pipeIdRef = useRef(0);
@@ -38,11 +41,13 @@ export default function GamePage() {
   const birdVelRef = useRef(0);
   const gameStateRef = useRef(gameState);
   const scoreRef = useRef(0);
+  const comboRef = useRef(0);
 
   birdYRef.current = birdY;
   birdVelRef.current = birdVelocity;
   gameStateRef.current = gameState;
   scoreRef.current = score;
+  comboRef.current = combo;
 
   const getGameHeight = useCallback(() => gameAreaRef.current?.clientHeight ?? 500, []);
   const getGameWidth = useCallback(() => gameAreaRef.current?.clientWidth ?? 400, []);
@@ -64,9 +69,11 @@ export default function GamePage() {
     const maxTop = height - PIPE_GAP - 100;
     const topHeight = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
     pipeIdRef.current += 1;
+    const pipeCount = pipeIdRef.current;
+    const isGolden = pipeCount % 5 === 0;  // 每第5个管道为金色，双倍分
     setPipes((prev) => [
       ...prev,
-      { id: pipeIdRef.current, x: getGameWidth(), topHeight, passed: false },
+      { id: pipeIdRef.current, x: getGameWidth(), topHeight, passed: false, isGolden },
     ]);
   }, [getGameHeight, getGameWidth]);
 
@@ -112,6 +119,9 @@ export default function GamePage() {
         let collision = false;
         let addScore = 0;
 
+        let passedThisFrame = false;
+        let wasGolden = false;
+
         const updated = prev
           .map((p) => {
             const nx = p.x - PIPE_SPEED * (dt / 16);
@@ -123,7 +133,9 @@ export default function GamePage() {
             if (birdRight > pipeLeft && birdLeft < pipeRight) {
               if (birdTop < gapTop || birdBottom > gapBottom) collision = true;
               if (!p.passed && birdLeft > pipeRight - 10) {
-                addScore += 1;
+                passedThisFrame = true;
+                wasGolden = !!p.isGolden;
+                addScore += p.isGolden ? 2 : 1;  // 金色管道双倍分
                 return { ...p, x: nx, passed: true };
               }
             }
@@ -133,6 +145,7 @@ export default function GamePage() {
 
         if (collision) {
           setGameState("gameover");
+          setCombo(0);
           const s = scoreRef.current;
           setHighScore((prev) => Math.max(prev, s));
           if (typeof window !== "undefined") {
@@ -140,7 +153,25 @@ export default function GamePage() {
             localStorage.setItem("flappy-game-high-score", String(Math.max(saved, s)));
           }
         }
-        if (addScore > 0) setScore((s) => s + addScore);
+        if (addScore > 0) {
+          if (passedThisFrame) {
+            const newCombo = comboRef.current + 1;
+            setCombo(newCombo);
+            // 连击奖励：2连击+1分, 4连击+2分, 6连击+3分...
+            const comboBonus = Math.floor(newCombo / 2);
+            const totalAdd = addScore + comboBonus;
+            setScore((s) => s + totalAdd);
+            scoreRef.current += totalAdd;
+            // 里程碑庆祝：5、10、15...
+            const newScore = scoreRef.current;
+            if (newScore > 0 && newScore % 5 === 0) {
+              setMilestone(newScore);
+              setTimeout(() => setMilestone(null), 1200);
+            }
+          } else {
+            setScore((s) => s + addScore);
+          }
+        }
 
         return updated;
       });
@@ -160,10 +191,13 @@ export default function GamePage() {
   const resetGame = useCallback(() => {
     setGameState("idle");
     setScore(0);
+    setCombo(0);
+    comboRef.current = 0;
     setBirdY(200);
     setBirdVelocity(0);
     setPipes([]);
     lastTimeRef.current = 0;
+    scoreRef.current = 0;
   }, []);
 
   // 从 localStorage 加载最高分
@@ -223,9 +257,12 @@ export default function GamePage() {
         </div>
 
         {/* 分数显示 */}
-        <div className="flex justify-between items-center px-2 mb-2 text-sm shrink-0">
-          <span className="text-slate-400">当前: <span className="text-white font-bold">{score}</span></span>
-          <span className="text-slate-400">最高: <span className="text-amber-400 font-bold">{highScore}</span></span>
+        <div className="flex justify-between items-center px-2 mb-2 text-sm shrink-0 gap-2">
+          <span className="text-slate-400 shrink-0">当前: <span className="text-white font-bold">{score}</span></span>
+          <span className="text-amber-400 font-bold animate-pulse min-w-[4rem] text-center">
+            {combo >= 2 ? `🔥 ${combo} 连击` : ""}
+          </span>
+          <span className="text-slate-400 shrink-0">最高: <span className="text-amber-400 font-bold">{highScore}</span></span>
         </div>
 
         {/* 游戏区域 - 支持触摸，全屏时占满剩余空间 */}
@@ -256,45 +293,51 @@ export default function GamePage() {
           <div className="absolute top-24 left-[30%] w-12 h-6 rounded-full bg-white/10" />
 
           {/* 管道 */}
-          {pipes.map((pipe) => (
-            <div
-              key={pipe.id}
-              className="absolute top-0 left-0 flex flex-col"
-              style={{
-                transform: `translateX(${pipe.x}px)`,
-                width: PIPE_WIDTH,
-              }}
-            >
-              {/* 上管道 */}
+          {pipes.map((pipe) => {
+            const isGolden = pipe.isGolden;
+            const pipeClass = isGolden
+              ? "from-amber-500 to-yellow-600 border-amber-600"
+              : "from-green-600 to-green-700 border-green-800";
+            return (
               <div
-                className="relative"
-                style={{ height: pipe.topHeight }}
+                key={pipe.id}
+                className="absolute top-0 left-0 flex flex-col"
+                style={{
+                  transform: `translateX(${pipe.x}px)`,
+                  width: PIPE_WIDTH,
+                }}
               >
+                {/* 上管道 */}
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-full bg-gradient-to-b from-green-600 to-green-700 rounded-t-lg border-2 border-green-800"
-                  style={{ width: PIPE_WIDTH }}
-                />
+                  className="relative"
+                  style={{ height: pipe.topHeight }}
+                >
+                  <div
+                    className={`absolute bottom-0 left-0 right-0 h-full bg-gradient-to-b rounded-t-lg border-2 ${pipeClass}`}
+                    style={{ width: PIPE_WIDTH }}
+                  />
+                  <div
+                    className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%+20px)] h-8 bg-gradient-to-b rounded-t-lg border-2 ${pipeClass}`}
+                  />
+                </div>
+                {/* 空隙 */}
+                <div style={{ height: PIPE_GAP }} />
+                {/* 下管道 */}
                 <div
-                  className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%+20px)] h-8 bg-gradient-to-b from-green-600 to-green-800 rounded-t-lg border-2 border-green-800"
-                />
+                  className="relative flex-1"
+                  style={{ minHeight: 100 }}
+                >
+                  <div
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%+20px)] h-8 bg-gradient-to-b rounded-b-lg border-2 ${pipeClass}`}
+                  />
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-full bg-gradient-to-b rounded-b-lg border-2 ${pipeClass}`}
+                    style={{ width: PIPE_WIDTH }}
+                  />
+                </div>
               </div>
-              {/* 空隙 */}
-              <div style={{ height: PIPE_GAP }} />
-              {/* 下管道 */}
-              <div
-                className="relative flex-1"
-                style={{ minHeight: 100 }}
-              >
-                <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%+20px)] h-8 bg-gradient-to-b from-green-700 to-green-800 rounded-b-lg border-2 border-green-800"
-                />
-                <div
-                  className="absolute top-0 left-0 right-0 h-full bg-gradient-to-b from-green-600 to-green-700 rounded-b-lg border-2 border-green-800"
-                  style={{ width: PIPE_WIDTH }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* 小鸟 */}
           <div
@@ -318,6 +361,15 @@ export default function GamePage() {
           <div
             className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-b from-amber-800/80 to-amber-900 border-t-2 border-amber-950"
           />
+
+          {/* 里程碑庆祝 */}
+          {milestone && (
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+              <span className="text-4xl font-bold text-amber-400 animate-pulse drop-shadow-lg">
+                🎉 {milestone} 分！
+              </span>
+            </div>
+          )}
 
           {/* 开始/结束界面 */}
           {gameState === "idle" && (
