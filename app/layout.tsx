@@ -14,7 +14,7 @@ function Navbar() {
         <Link href="/" className="text-xl font-bold hover:opacity-80 transition-opacity">
           Double&apos;s Blog
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="flex items-center gap-1 text-sm overflow-x-auto min-w-0 whitespace-nowrap max-md:px-1">
           <Link
             href="/"
             className="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all"
@@ -38,6 +38,12 @@ function Navbar() {
             className="px-3 py-2 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all"
           >
             📋 共享剪贴板
+          </Link>
+          <Link
+            href="/game"
+            className="px-3 py-2 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+          >
+            🎮 飞跃小鸟
           </Link>
         </nav>
       </div>

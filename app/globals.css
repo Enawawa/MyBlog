@@ -55,6 +55,9 @@ body {
       focus:outline-none focus:border-indigo-500/50 focus:ring-2
       focus:ring-indigo-500/20 transition-all duration-200;
   }
+  .safe-area-pb {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* ---------- ClipBoard Room specific ---------- */
