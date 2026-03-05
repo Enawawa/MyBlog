@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>节奏弹跳 - 3D Rhythm Bounce</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0d001a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #score { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 60px; font-weight: 900; color: #fff; text-shadow: 0 0 30px rgba(200,0,255,0.5); z-index: 10; }
+        #combo-text { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); font-size: 22px; color: #ff00ff; opacity: 0; transition: opacity 0.3s; z-index: 10; }
+        #combo-text.show { opacity: 1; }
+        #best { position: absolute; top: 10px; right: 20px; font-size: 16px; color: rgba(255,255,255,0.5); z-index: 10; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); pointer-events: all; z-index: 20; }
+        .overlay h1 { font-size: 48px; color: #fff; margin-bottom: 10px; text-shadow: 0 0 40px rgba(200,0,255,0.6); }
+        .overlay h2 { font-size: 26px; color: #cc44ff; margin-bottom: 30px; }
+        .overlay p { font-size: 18px; color: #aaa; margin-bottom: 20px; text-align: center; }
+        .btn { background: linear-gradient(135deg, #cc44ff, #7b2ff7); color: #fff; border: none; padding: 16px 48px; font-size: 22px; border-radius: 50px; cursor: pointer; pointer-events: all; box-shadow: 0 8px 30px rgba(200,0,255,0.4); transition: transform 0.2s; }
+        .btn:hover { transform: scale(1.05); }
+        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.12); color: #fff; border: none; padding: 10px 20px; font-size: 16px; border-radius: 25px; cursor: pointer; pointer-events: all; z-index: 30; backdrop-filter: blur(10px); }
+        .back-btn:hover { background: rgba(255,255,255,0.22); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <a class="back-btn" href="/">← 返回博客</a>
+        <div id="score">0</div>
+        <div id="combo-text"></div>
+        <div id="best">最高: 0</div>
+        <div id="start-screen" class="overlay">
+            <h1>🎵 节奏弹跳</h1>
+            <h2>3D Rhythm Bounce</h2>
+            <p>点击屏幕让球弹跳，落在平台上得分！<br>连续精准着陆获得连击加分！</p>
+            <button class="btn" id="startBtn">开始弹跳</button>
+        </div>
+        <div id="game-over" class="overlay hidden">
+            <h1>掉落了！</h1>
+            <h2 id="final-score">得分: 0</h2>
+            <p id="new-record" class="hidden" style="color:#ffd700;font-size:24px;">🎉 新纪录！</p>
+            <button class="btn" id="restartBtn">再跳一次</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        let scene, camera, renderer;
+        let ball, ballGroup;
+        let platforms = [], particles = [];
+        let gameStarted = false, isGameOver = false;
+        let score = 0, combo = 0, bestScore = parseInt(localStorage.getItem('bounce-best') || '0');
+        let ballVelY = 0, ballVelX = 0, ballVelZ = 0;
+        let bounceForce = 0.18;
+        let platformIndex = 0;
+        let cameraTarget = new THREE.Vector3();
+        let isOnPlatform = false;
+        const gravity = -0.006;
+        const platformSpacing = 3;
+
+        document.getElementById('best').textContent = '最高: ' + bestScore;
+
+        const colorPalette = [
+            0xff006e, 0x8338ec, 0x3a86ff, 0xfb5607, 0xffbe0b,
+            0x06d6a0, 0xef476f, 0x118ab2, 0x073b4c, 0xff00ff
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0d001a);
+            scene.fog = new THREE.FogExp2(0x0d001a, 0.02);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(5, 8, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.3;
+            document.body.insertBefore(renderer.domElement, document.getElementById('ui'));
+
+            scene.add(new THREE.AmbientLight(0x332255, 0.6));
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(5, 15, 5);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.set(1024, 1024);
+            scene.add(dirLight);
+
+            const purpleLight = new THREE.PointLight(0x8800ff, 1, 30);
+            purpleLight.position.set(-5, 10, -5);
+            scene.add(purpleLight);
+
+            const pinkLight = new THREE.PointLight(0xff0088, 0.8, 25);
+            pinkLight.position.set(5, 5, 5);
+            scene.add(pinkLight);
+
+            createBall();
+            generatePlatforms(0);
+            createStarField();
+
+            window.addEventListener('resize', onResize);
+        }
+
+        function createBall() {
+            ballGroup = new THREE.Group();
+
+            const geo = new THREE.SphereGeometry(0.35, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff00ff, metalness: 0.7, roughness: 0.1,
+                emissive: 0x880088, emissiveIntensity: 0.4
+            });
+            ball = new THREE.Mesh(geo, mat);
+            ball.castShadow = true;
+            ballGroup.add(ball);
+
+            const glowGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.15 });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            ballGroup.add(glow);
+
+            const pointLight = new THREE.PointLight(0xff00ff, 0.6, 5);
+            ballGroup.add(pointLight);
+
+            ballGroup.position.set(0, 3, 0);
+            scene.add(ballGroup);
+        }
+
+        function createStarField() {
+            const geo = new THREE.BufferGeometry();
+            const count = 400;
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                pos[i * 3] = (Math.random() - 0.5) * 80;
+                pos[i * 3 + 1] = Math.random() * 40 - 10;
+                pos[i * 3 + 2] = (Math.random() - 0.5) * 80;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                color: 0xffffff, size: 0.06, transparent: true, opacity: 0.5
+            });
+            scene.add(new THREE.Points(geo, mat));
+        }
+
+        function generatePlatforms(startIdx) {
+            let lastX = startIdx === 0 ? 0 : platforms[platforms.length - 1].mesh.position.x;
+            let lastZ = startIdx === 0 ? 0 : platforms[platforms.length - 1].mesh.position.z;
+
+            for (let i = 0; i < 20; i++) {
+                const idx = startIdx + i;
+                const w = Math.max(1.2, 2.5 - idx * 0.02);
+                const d = Math.max(1.2, 2.5 - idx * 0.02);
+                const dx = (Math.random() - 0.5) * platformSpacing;
+                const dz = -platformSpacing - Math.random() * 1.5;
+                const x = lastX + dx;
+                const z = lastZ + dz;
+                const y = -idx * 0.3;
+
+                const color = colorPalette[idx % colorPalette.length];
+                const geo = new THREE.BoxGeometry(w, 0.3, d);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: color, metalness: 0.4, roughness: 0.4,
+                    emissive: color, emissiveIntensity: 0.15
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+
+                const edgeGeo = new THREE.EdgesGeometry(geo);
+                const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+                const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+                mesh.add(edges);
+
+                platforms.push({ mesh, width: w, depth: d, index: idx, scored: false });
+                lastX = x;
+                lastZ = z;
+            }
+        }
+
+        function createBounceParticles(pos, color) {
+            for (let i = 0; i < 15; i++) {
+                const geo = new THREE.SphereGeometry(0.06, 6, 6);
+                const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                scene.add(mesh);
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.03 + Math.random() * 0.06;
+                particles.push({
+                    mesh,
+                    vx: Math.cos(angle) * speed,
+                    vy: 0.02 + Math.random() * 0.05,
+                    vz: Math.sin(angle) * speed,
+                    life: 1
+                });
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            gameStarted = true;
+            isGameOver = false;
+            score = 0;
+            combo = 0;
+            platformIndex = 0;
+            ballVelY = 0;
+            ballVelX = 0;
+            ballVelZ = 0;
+            isOnPlatform = true;
+            document.getElementById('score').textContent = '0';
+
+            platforms.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
+            platforms = [];
+            particles.forEach(p => { scene.remove(p.mesh); });
+            particles = [];
+
+            generatePlatforms(0);
+            ballGroup.position.set(platforms[0].mesh.position.x, platforms[0].mesh.position.y + 1, platforms[0].mesh.position.z);
+        }
+
+        function bounce() {
+            if (!gameStarted || isGameOver) return;
+            if (!isOnPlatform) return;
+
+            isOnPlatform = false;
+            ballVelY = bounceForce;
+
+            if (platformIndex + 1 < platforms.length) {
+                const next = platforms[platformIndex + 1];
+                const curr = ballGroup.position;
+                const dx = next.mesh.position.x - curr.x;
+                const dz = next.mesh.position.z - curr.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                const travelTime = bounceForce * 2 / Math.abs(gravity);
+                ballVelX = dx / travelTime * 0.7;
+                ballVelZ = dz / travelTime * 0.7;
+            }
+        }
+
+        function checkLanding() {
+            if (ballVelY > 0) return false;
+
+            for (let i = platformIndex; i < Math.min(platformIndex + 4, platforms.length); i++) {
+                const p = platforms[i];
+                const bx = ballGroup.position.x;
+                const bz = ballGroup.position.z;
+                const by = ballGroup.position.y;
+                const py = p.mesh.position.y + 0.15;
+
+                if (by <= py + 0.4 && by >= py - 0.5) {
+                    const dx = Math.abs(bx - p.mesh.position.x);
+                    const dz = Math.abs(bz - p.mesh.position.z);
+                    if (dx < p.width / 2 + 0.1 && dz < p.depth / 2 + 0.1) {
+                        ballGroup.position.y = py + 0.4;
+                        ballVelY = 0;
+                        ballVelX = 0;
+                        ballVelZ = 0;
+                        isOnPlatform = true;
+
+                        if (i > platformIndex) {
+                            const skipped = i - platformIndex;
+                            platformIndex = i;
+
+                            const isPerfect = dx < 0.3 && dz < 0.3;
+                            if (isPerfect) {
+                                combo++;
+                                score += 10 * combo + skipped * 5;
+                                const ct = document.getElementById('combo-text');
+                                ct.textContent = combo >= 3 ? `🔥 完美连击 x${combo}！` : '✨ 完美！';
+                                ct.classList.add('show');
+                                setTimeout(() => ct.classList.remove('show'), 800);
+
+                                p.mesh.material.emissiveIntensity = 0.8;
+                                setTimeout(() => { p.mesh.material.emissiveIntensity = 0.15; }, 300);
+                            } else {
+                                combo = 0;
+                                score += 10 + skipped * 5;
+                            }
+
+                            document.getElementById('score').textContent = score;
+                            createBounceParticles(ballGroup.position.clone(), p.mesh.material.color);
+
+                            if (platformIndex > platforms.length - 10) {
+                                generatePlatforms(platforms.length);
+                            }
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function endGame() {
+            isGameOver = true;
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('bounce-best', bestScore.toString());
+                document.getElementById('best').textContent = '最高: ' + bestScore;
+                document.getElementById('new-record').classList.remove('hidden');
+            } else {
+                document.getElementById('new-record').classList.add('hidden');
+            }
+            document.getElementById('final-score').textContent = '得分: ' + score;
+            setTimeout(() => document.getElementById('game-over').classList.remove('hidden'), 600);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameStarted && !isGameOver) {
+                if (!isOnPlatform) {
+                    ballVelY += gravity;
+                    ballGroup.position.y += ballVelY;
+                    ballGroup.position.x += ballVelX;
+                    ballGroup.position.z += ballVelZ;
+
+                    ball.rotation.x += 0.08;
+                    ball.rotation.z += 0.05;
+
+                    if (!checkLanding() && ballGroup.position.y < platforms[platformIndex].mesh.position.y - 8) {
+                        endGame();
+                    }
+                }
+
+                cameraTarget.set(
+                    ballGroup.position.x + 5,
+                    ballGroup.position.y + 6,
+                    ballGroup.position.z + 10
+                );
+                camera.position.lerp(cameraTarget, 0.04);
+                camera.lookAt(ballGroup.position);
+
+                platforms.forEach((p, i) => {
+                    if (i >= platformIndex - 1 && i <= platformIndex + 3) {
+                        p.mesh.position.y += Math.sin(Date.now() * 0.001 + i * 0.5) * 0.0005;
+                    }
+                });
+            }
+
+            if (!gameStarted && ballGroup) {
+                ballGroup.position.y = 3 + Math.sin(Date.now() * 0.003) * 0.3;
+                ball.rotation.y += 0.02;
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                p.vy -= 0.001;
+                p.life -= 0.025;
+                p.mesh.material.opacity = p.life;
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', () => { document.getElementById('game-over').classList.add('hidden'); startGame(); });
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+            if (gameStarted && !isGameOver) bounce();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameStarted) startGame();
+                else if (isGameOver) { document.getElementById('game-over').classList.add('hidden'); startGame(); }
+                else bounce();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

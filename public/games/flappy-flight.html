@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>飞跃障碍 - 3D Flappy Flight</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0f0c29; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #score { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 72px; font-weight: 900; color: #fff; text-shadow: 0 0 30px rgba(0,200,255,0.5); z-index: 10; }
+        #best { position: absolute; top: 10px; right: 20px; font-size: 16px; color: rgba(255,255,255,0.5); z-index: 10; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.65); pointer-events: all; z-index: 20; }
+        .overlay h1 { font-size: 48px; color: #fff; margin-bottom: 10px; text-shadow: 0 0 40px rgba(0,200,255,0.6); }
+        .overlay h2 { font-size: 26px; color: #00d2ff; margin-bottom: 30px; }
+        .overlay p { font-size: 18px; color: #aaa; margin-bottom: 20px; }
+        .btn { background: linear-gradient(135deg, #00d2ff, #3a7bd5); color: #fff; border: none; padding: 16px 48px; font-size: 22px; border-radius: 50px; cursor: pointer; pointer-events: all; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 8px 30px rgba(0,210,255,0.4); }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(0,210,255,0.6); }
+        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.12); color: #fff; border: none; padding: 10px 20px; font-size: 16px; border-radius: 25px; cursor: pointer; pointer-events: all; z-index: 30; backdrop-filter: blur(10px); }
+        .back-btn:hover { background: rgba(255,255,255,0.22); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <a class="back-btn" href="/">← 返回博客</a>
+        <div id="score">0</div>
+        <div id="best">最高: 0</div>
+        <div id="start-screen" class="overlay">
+            <h1>🚀 飞跃障碍</h1>
+            <h2>3D Flappy Flight</h2>
+            <p>点击屏幕或按空格键让飞船上升，穿越障碍！</p>
+            <button class="btn" id="startBtn">开始飞行</button>
+        </div>
+        <div id="game-over" class="overlay hidden">
+            <h1>坠毁了！</h1>
+            <h2 id="final-score">飞行距离: 0</h2>
+            <p id="new-record" class="hidden" style="color:#ffd700;font-size:24px;">🎉 新纪录！</p>
+            <button class="btn" id="restartBtn">重新起飞</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        let scene, camera, renderer;
+        let ship, shipGroup;
+        let obstacles = [], particles = [], stars = [];
+        let gameStarted = false, isGameOver = false;
+        let score = 0, bestScore = parseInt(localStorage.getItem('flappy-best') || '0');
+        let velocity = 0, gravity = -0.0025, lift = 0.065;
+        let speed = 0.12, frameCount = 0;
+        const gapSize = 3.8;
+
+        document.getElementById('best').textContent = '最高: ' + bestScore;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f0c29);
+            scene.fog = new THREE.Fog(0x0f0c29, 15, 45);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            document.body.insertBefore(renderer.domElement, document.getElementById('ui'));
+
+            scene.add(new THREE.AmbientLight(0x334488, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(3, 8, 5);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x00d2ff, 1, 15);
+            pointLight.position.set(0, 0, 5);
+            scene.add(pointLight);
+
+            createShip();
+            createStarField();
+
+            window.addEventListener('resize', onResize);
+        }
+
+        function createShip() {
+            shipGroup = new THREE.Group();
+
+            const bodyGeo = new THREE.ConeGeometry(0.25, 0.8, 6);
+            bodyGeo.rotateZ(-Math.PI / 2);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x00d2ff, metalness: 0.8, roughness: 0.2,
+                emissive: 0x004466, emissiveIntensity: 0.3
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            shipGroup.add(body);
+
+            const wingGeo = new THREE.BoxGeometry(0.4, 0.02, 0.8);
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0x3a7bd5, metalness: 0.7, roughness: 0.3 });
+            const wing = new THREE.Mesh(wingGeo, wingMat);
+            wing.position.x = 0.1;
+            shipGroup.add(wing);
+
+            const engineGlow = new THREE.PointLight(0xff6600, 0.8, 3);
+            engineGlow.position.set(-0.5, 0, 0);
+            shipGroup.add(engineGlow);
+
+            const trailGeo = new THREE.SphereGeometry(0.1, 8, 8);
+            const trailMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.6 });
+            const trail = new THREE.Mesh(trailGeo, trailMat);
+            trail.position.x = -0.5;
+            trail.scale.set(2, 0.5, 0.5);
+            shipGroup.add(trail);
+
+            shipGroup.position.set(-2, 0, 0);
+            scene.add(shipGroup);
+            ship = shipGroup;
+        }
+
+        function createStarField() {
+            const geo = new THREE.BufferGeometry();
+            const count = 500;
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                pos[i * 3] = (Math.random() - 0.5) * 60;
+                pos[i * 3 + 1] = (Math.random() - 0.5) * 30;
+                pos[i * 3 + 2] = (Math.random() - 0.5) * 60 - 10;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.6 });
+            const starField = new THREE.Points(geo, mat);
+            scene.add(starField);
+            stars.push(starField);
+        }
+
+        function createObstacle(zPos) {
+            const gapCenter = (Math.random() - 0.5) * 4;
+            const pipeRadius = 0.4;
+            const pipeLength = 8;
+            const colorTop = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.8, 0.5);
+            const colorBot = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.8, 0.5);
+
+            const topGeo = new THREE.CylinderGeometry(pipeRadius, pipeRadius * 1.2, pipeLength, 8);
+            const topMat = new THREE.MeshStandardMaterial({ color: colorTop, metalness: 0.6, roughness: 0.3, emissive: colorTop, emissiveIntensity: 0.1 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.set(0, gapCenter + gapSize / 2 + pipeLength / 2, zPos);
+            top.castShadow = true;
+            scene.add(top);
+
+            const botGeo = new THREE.CylinderGeometry(pipeRadius * 1.2, pipeRadius, pipeLength, 8);
+            const botMat = new THREE.MeshStandardMaterial({ color: colorBot, metalness: 0.6, roughness: 0.3, emissive: colorBot, emissiveIntensity: 0.1 });
+            const bot = new THREE.Mesh(botGeo, botMat);
+            bot.position.set(0, gapCenter - gapSize / 2 - pipeLength / 2, zPos);
+            bot.castShadow = true;
+            scene.add(bot);
+
+            const ringGeo = new THREE.TorusGeometry(gapSize / 2 - 0.2, 0.06, 8, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.set(0, gapCenter, zPos);
+            scene.add(ring);
+
+            obstacles.push({ top, bot, ring, z: zPos, gapCenter, scored: false });
+        }
+
+        function createExplosionParticles(pos) {
+            for (let i = 0; i < 30; i++) {
+                const geo = new THREE.SphereGeometry(0.05 + Math.random() * 0.08, 6, 6);
+                const mat = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.05, 1, 0.6),
+                    transparent: true, opacity: 1
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                scene.add(mesh);
+                particles.push({
+                    mesh,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    vz: (Math.random() - 0.5) * 0.3,
+                    life: 1
+                });
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            gameStarted = true;
+            isGameOver = false;
+            score = 0;
+            velocity = 0;
+            speed = 0.12;
+            frameCount = 0;
+            document.getElementById('score').textContent = '0';
+            ship.position.set(-2, 0, 0);
+            ship.rotation.set(0, 0, 0);
+
+            obstacles.forEach(o => { scene.remove(o.top); scene.remove(o.bot); scene.remove(o.ring); });
+            obstacles = [];
+
+            for (let i = 0; i < 6; i++) {
+                createObstacle(-15 - i * 10);
+            }
+        }
+
+        function flap() {
+            if (!gameStarted || isGameOver) return;
+            velocity = lift;
+        }
+
+        function endGame() {
+            isGameOver = true;
+            createExplosionParticles(ship.position.clone());
+            ship.visible = false;
+
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('flappy-best', bestScore.toString());
+                document.getElementById('best').textContent = '最高: ' + bestScore;
+                document.getElementById('new-record').classList.remove('hidden');
+            } else {
+                document.getElementById('new-record').classList.add('hidden');
+            }
+            document.getElementById('final-score').textContent = '飞行距离: ' + score;
+            setTimeout(() => document.getElementById('game-over').classList.remove('hidden'), 800);
+        }
+
+        function resetGame() {
+            document.getElementById('game-over').classList.add('hidden');
+            ship.visible = true;
+            particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
+            particles = [];
+            startGame();
+        }
+
+        function checkCollision() {
+            const shipY = ship.position.y;
+            const shipZ = ship.position.z;
+            if (shipY > 6 || shipY < -6) return true;
+
+            for (const obs of obstacles) {
+                const dz = Math.abs(obs.top.position.z - shipZ);
+                if (dz < 0.6) {
+                    if (shipY > obs.gapCenter + gapSize / 2 - 0.3 || shipY < obs.gapCenter - gapSize / 2 + 0.3) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            frameCount++;
+
+            if (gameStarted && !isGameOver) {
+                velocity += gravity;
+                ship.position.y += velocity;
+                ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, velocity * 8, 0.1);
+
+                for (const obs of obstacles) {
+                    obs.top.position.z += speed;
+                    obs.bot.position.z += speed;
+                    obs.ring.position.z += speed;
+                    obs.ring.rotation.z += 0.02;
+
+                    if (!obs.scored && obs.top.position.z > ship.position.z) {
+                        obs.scored = true;
+                        score++;
+                        document.getElementById('score').textContent = score;
+                        speed = 0.12 + Math.min(score * 0.002, 0.08);
+                    }
+
+                    if (obs.top.position.z > 15) {
+                        obs.top.position.z -= 60;
+                        obs.bot.position.z -= 60;
+                        obs.ring.position.z -= 60;
+                        obs.scored = false;
+                        const newGap = (Math.random() - 0.5) * 4;
+                        obs.gapCenter = newGap;
+                        obs.top.position.y = newGap + gapSize / 2 + 4;
+                        obs.bot.position.y = newGap - gapSize / 2 - 4;
+                        obs.ring.position.y = newGap;
+                    }
+                }
+
+                if (checkCollision()) endGame();
+            }
+
+            if (!gameStarted) {
+                ship.position.y = Math.sin(frameCount * 0.03) * 0.5;
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                p.vy -= 0.003;
+                p.life -= 0.02;
+                p.mesh.material.opacity = p.life;
+                p.mesh.scale.setScalar(p.life);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
+
+            stars.forEach(s => {
+                s.rotation.z += 0.0002;
+                s.rotation.x += 0.0001;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', resetGame);
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+            if (!gameStarted) return;
+            flap();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameStarted) startGame();
+                else if (isGameOver) resetGame();
+                else flap();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

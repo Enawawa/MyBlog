@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>堆叠方块 - 3D Stack Tower</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #score { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 72px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10; }
+        #combo { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 24px; color: #ffd700; opacity: 0; transition: opacity 0.3s; z-index: 10; }
+        #combo.show { opacity: 1; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); pointer-events: all; z-index: 20; }
+        .overlay h1 { font-size: 48px; color: #fff; margin-bottom: 10px; text-shadow: 0 0 30px rgba(255,215,0,0.5); }
+        .overlay h2 { font-size: 28px; color: #ffd700; margin-bottom: 30px; }
+        .overlay p { font-size: 20px; color: #ccc; margin-bottom: 20px; }
+        .btn { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; padding: 16px 48px; font-size: 22px; border-radius: 50px; cursor: pointer; pointer-events: all; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 8px 30px rgba(102,126,234,0.4); }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(102,126,234,0.6); }
+        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.15); color: #fff; border: none; padding: 10px 20px; font-size: 16px; border-radius: 25px; cursor: pointer; pointer-events: all; z-index: 30; backdrop-filter: blur(10px); }
+        .back-btn:hover { background: rgba(255,255,255,0.25); }
+        #best { position: absolute; top: 10px; right: 20px; font-size: 16px; color: rgba(255,255,255,0.6); z-index: 10; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <a class="back-btn" href="/">← 返回博客</a>
+        <div id="score">0</div>
+        <div id="combo"></div>
+        <div id="best">最高: 0</div>
+        <div id="start-screen" class="overlay">
+            <h1>🏗️ 堆叠方块</h1>
+            <h2>3D Stack Tower</h2>
+            <p>点击屏幕放置方块，精准堆叠！</p>
+            <button class="btn" id="startBtn">开始游戏</button>
+        </div>
+        <div id="game-over" class="overlay hidden">
+            <h1>游戏结束</h1>
+            <h2 id="final-score">得分: 0</h2>
+            <p id="new-record" class="hidden" style="color:#ffd700;font-size:24px;">🎉 新纪录！</p>
+            <button class="btn" id="restartBtn">再来一次</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        let scene, camera, renderer, stack = [], overhangs = [], gameStarted = false, gameOver = false;
+        let score = 0, bestScore = parseInt(localStorage.getItem('stack-best') || '0');
+        let combo = 0, animationId;
+        const boxHeight = 0.6;
+        const originalSize = { width: 3, depth: 3 };
+
+        document.getElementById('best').textContent = '最高: ' + bestScore;
+
+        const colors = [
+            new THREE.Color(0xff6b6b), new THREE.Color(0xfeca57), new THREE.Color(0x48dbfb),
+            new THREE.Color(0xff9ff3), new THREE.Color(0x54a0ff), new THREE.Color(0x5f27cd),
+            new THREE.Color(0x01a3a4), new THREE.Color(0xf368e0), new THREE.Color(0xff6348),
+            new THREE.Color(0x2ed573), new THREE.Color(0x1e90ff), new THREE.Color(0xff4757)
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.FogExp2(0x1a1a2e, 0.04);
+
+            camera = new THREE.OrthographicCamera(
+                window.innerWidth / -90, window.innerWidth / 90,
+                window.innerHeight / 90, window.innerHeight / -90, 0.1, 100
+            );
+            camera.position.set(6, 8, 6);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.body.insertBefore(renderer.domElement, document.getElementById('ui'));
+
+            const ambientLight = new THREE.AmbientLight(0x9090c0, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(5, 15, 5);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.set(2048, 2048);
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 50;
+            dirLight.shadow.camera.left = -10;
+            dirLight.shadow.camera.right = 10;
+            dirLight.shadow.camera.top = 10;
+            dirLight.shadow.camera.bottom = -10;
+            scene.add(dirLight);
+
+            const rimLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+            rimLight.position.set(-3, 5, -3);
+            scene.add(rimLight);
+
+            addBase();
+            addParticleField();
+
+            window.addEventListener('resize', onResize);
+        }
+
+        function addParticleField() {
+            const geometry = new THREE.BufferGeometry();
+            const count = 200;
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 40;
+                positions[i * 3 + 1] = Math.random() * 30 - 5;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 40;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.4 });
+            scene.add(new THREE.Points(geometry, material));
+        }
+
+        function addBase() {
+            const geo = new THREE.BoxGeometry(originalSize.width, boxHeight, originalSize.depth);
+            const mat = new THREE.MeshStandardMaterial({
+                color: colors[0], metalness: 0.2, roughness: 0.5
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = -0.3;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            stack.push({ mesh, width: originalSize.width, depth: originalSize.depth, x: 0, z: 0, direction: 'x' });
+        }
+
+        function addLayer(x, z, width, depth, direction) {
+            const y = boxHeight * stack.length - 0.3;
+            const color = colors[stack.length % colors.length];
+            const geo = new THREE.BoxGeometry(width, boxHeight, depth);
+            const mat = new THREE.MeshStandardMaterial({
+                color: color, metalness: 0.3, roughness: 0.4,
+                emissive: color, emissiveIntensity: 0.05
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            stack.push({ mesh, width, depth, x, z, direction });
+        }
+
+        function addOverhang(x, z, width, depth, y) {
+            const color = colors[(stack.length - 1) % colors.length];
+            const geo = new THREE.BoxGeometry(width, boxHeight, depth);
+            const mat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.1, roughness: 0.7, transparent: true, opacity: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            overhangs.push({ mesh, velocity: 0, rotVelocity: (Math.random() - 0.5) * 0.1 });
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            gameStarted = true;
+            gameOver = false;
+            score = 0;
+            combo = 0;
+            document.getElementById('score').textContent = '0';
+            addLayer(-5, 0, originalSize.width, originalSize.depth, 'x');
+        }
+
+        function placeBlock() {
+            if (!gameStarted || gameOver) return;
+            const topLayer = stack[stack.length - 1];
+            const prevLayer = stack[stack.length - 2];
+            const dir = topLayer.direction;
+
+            const delta = dir === 'x'
+                ? topLayer.mesh.position.x - prevLayer.mesh.position.x
+                : topLayer.mesh.position.z - prevLayer.mesh.position.z;
+
+            const overhangSize = Math.abs(delta);
+            const size = dir === 'x' ? topLayer.width : topLayer.depth;
+            const overlap = size - overhangSize;
+
+            if (overlap <= 0) { endGame(); return; }
+
+            const isPerfect = overhangSize < 0.15;
+
+            if (isPerfect) {
+                combo++;
+                const comboEl = document.getElementById('combo');
+                comboEl.textContent = combo >= 3 ? `🔥 完美 x${combo}！` : '✨ 完美！';
+                comboEl.classList.add('show');
+                setTimeout(() => comboEl.classList.remove('show'), 800);
+
+                topLayer.mesh.position[dir === 'x' ? 'x' : 'z'] = prevLayer.mesh.position[dir === 'x' ? 'x' : 'z'];
+
+                if (combo >= 3) {
+                    const newWidth = Math.min(topLayer.width + 0.1, originalSize.width);
+                    const newDepth = Math.min(topLayer.depth + 0.1, originalSize.depth);
+                    topLayer.width = newWidth;
+                    topLayer.depth = newDepth;
+                    topLayer.mesh.geometry.dispose();
+                    topLayer.mesh.geometry = new THREE.BoxGeometry(newWidth, boxHeight, newDepth);
+                }
+            } else {
+                combo = 0;
+                const newWidth = dir === 'x' ? overlap : topLayer.width;
+                const newDepth = dir === 'z' ? overlap : topLayer.depth;
+                topLayer.width = newWidth;
+                topLayer.depth = newDepth;
+
+                topLayer.mesh.geometry.dispose();
+                topLayer.mesh.geometry = new THREE.BoxGeometry(newWidth, boxHeight, newDepth);
+
+                const newPos = dir === 'x'
+                    ? prevLayer.mesh.position.x + delta / 2
+                    : prevLayer.mesh.position.z + delta / 2;
+                if (dir === 'x') topLayer.mesh.position.x = newPos;
+                else topLayer.mesh.position.z = newPos;
+
+                const overhangX = dir === 'x' ? newPos + (delta > 0 ? newWidth / 2 + overhangSize / 2 : -newWidth / 2 - overhangSize / 2) : topLayer.mesh.position.x;
+                const overhangZ = dir === 'z' ? newPos + (delta > 0 ? newDepth / 2 + overhangSize / 2 : -newDepth / 2 - overhangSize / 2) : topLayer.mesh.position.z;
+                const ohW = dir === 'x' ? overhangSize : newWidth;
+                const ohD = dir === 'z' ? overhangSize : newDepth;
+                addOverhang(overhangX, overhangZ, ohW, ohD, topLayer.mesh.position.y);
+            }
+
+            score++;
+            document.getElementById('score').textContent = score;
+
+            const nextDir = topLayer.direction === 'x' ? 'z' : 'x';
+            const nextX = nextDir === 'x' ? -5 : topLayer.mesh.position.x;
+            const nextZ = nextDir === 'z' ? -5 : topLayer.mesh.position.z;
+            addLayer(nextX, nextZ, topLayer.width, topLayer.depth, nextDir);
+        }
+
+        function endGame() {
+            gameOver = true;
+            const topLayer = stack[stack.length - 1];
+            overhangs.push({
+                mesh: topLayer.mesh,
+                velocity: 0,
+                rotVelocity: (Math.random() - 0.5) * 0.15
+            });
+
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('stack-best', bestScore.toString());
+                document.getElementById('best').textContent = '最高: ' + bestScore;
+                document.getElementById('new-record').classList.remove('hidden');
+            } else {
+                document.getElementById('new-record').classList.add('hidden');
+            }
+
+            document.getElementById('final-score').textContent = '得分: ' + score;
+            setTimeout(() => document.getElementById('game-over').classList.remove('hidden'), 600);
+        }
+
+        function resetGame() {
+            document.getElementById('game-over').classList.add('hidden');
+            stack.forEach(layer => { scene.remove(layer.mesh); layer.mesh.geometry.dispose(); layer.mesh.material.dispose(); });
+            overhangs.forEach(o => { scene.remove(o.mesh); o.mesh.geometry.dispose(); o.mesh.material.dispose(); });
+            stack = [];
+            overhangs = [];
+            score = 0;
+            combo = 0;
+            document.getElementById('score').textContent = '0';
+            camera.position.y = 8;
+            addBase();
+            addLayer(-5, 0, originalSize.width, originalSize.depth, 'x');
+            gameOver = false;
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            if (gameStarted && !gameOver && stack.length > 1) {
+                const topLayer = stack[stack.length - 1];
+                const speed = 0.06 + Math.min(score * 0.003, 0.08);
+                if (topLayer.direction === 'x') {
+                    topLayer.mesh.position.x += speed;
+                    if (topLayer.mesh.position.x > 5) topLayer.mesh.position.x = -5;
+                } else {
+                    topLayer.mesh.position.z += speed;
+                    if (topLayer.mesh.position.z > 5) topLayer.mesh.position.z = -5;
+                }
+            }
+
+            const targetY = 8 + (stack.length - 2) * boxHeight;
+            camera.position.y += (targetY - camera.position.y) * 0.05;
+            camera.lookAt(0, camera.position.y - 8, 0);
+
+            for (let i = overhangs.length - 1; i >= 0; i--) {
+                const o = overhangs[i];
+                o.velocity -= 0.005;
+                o.mesh.position.y += o.velocity;
+                o.mesh.rotation.x += o.rotVelocity;
+                o.mesh.rotation.z += o.rotVelocity * 0.7;
+                if (o.mesh.position.y < -15) {
+                    scene.remove(o.mesh);
+                    o.mesh.geometry.dispose();
+                    o.mesh.material.dispose();
+                    overhangs.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.left = window.innerWidth / -90;
+            camera.right = window.innerWidth / 90;
+            camera.top = window.innerHeight / 90;
+            camera.bottom = window.innerHeight / -90;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', resetGame);
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+            if (gameStarted && !gameOver) placeBlock();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameStarted) startGame();
+                else if (gameOver) resetGame();
+                else placeBlock();
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

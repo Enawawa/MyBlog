@@ -91,6 +91,64 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 3D Game Section */}
+      <section id="games" className="py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">
+            <span className="gradient-text">🎮 3D 游戏空间</span>
+          </h2>
+          <p className="text-center text-slate-500 text-sm mb-12">
+            基于 WebGL 引擎打造，畅玩精美 3D 小游戏
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <a href="/games/stack-tower.html" className="group block">
+              <div className="glass rounded-2xl overflow-hidden glass-hover border-purple-500/20">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-purple-600/30 to-indigo-600/30 flex items-center justify-center">
+                  <span className="text-5xl md:text-6xl group-hover:scale-110 transition-transform duration-300">🏗️</span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-purple-400">堆叠方块</h3>
+                  <p className="text-xs text-slate-500 mt-1">策略 · 休闲</p>
+                </div>
+              </div>
+            </a>
+            <a href="/games/flappy-flight.html" className="group block">
+              <div className="glass rounded-2xl overflow-hidden glass-hover border-cyan-500/20">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-cyan-600/30 to-blue-800/30 flex items-center justify-center">
+                  <span className="text-5xl md:text-6xl group-hover:scale-110 transition-transform duration-300">🚀</span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-cyan-400">飞跃障碍</h3>
+                  <p className="text-xs text-slate-500 mt-1">动作 · 敏捷</p>
+                </div>
+              </div>
+            </a>
+            <a href="/games/racing-drift.html" className="group block">
+              <div className="glass rounded-2xl overflow-hidden glass-hover border-orange-500/20">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-orange-600/30 to-red-800/30 flex items-center justify-center">
+                  <span className="text-5xl md:text-6xl group-hover:scale-110 transition-transform duration-300">🏎️</span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-orange-400">极速漂移</h3>
+                  <p className="text-xs text-slate-500 mt-1">竞速 · 闪避</p>
+                </div>
+              </div>
+            </a>
+            <a href="/games/rhythm-bounce.html" className="group block">
+              <div className="glass rounded-2xl overflow-hidden glass-hover border-pink-500/20">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-pink-600/30 to-purple-800/30 flex items-center justify-center">
+                  <span className="text-5xl md:text-6xl group-hover:scale-110 transition-transform duration-300">🎵</span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-pink-400">节奏弹跳</h3>
+                  <p className="text-xs text-slate-500 mt-1">节奏 · 跳跃</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-8 text-center text-slate-600 text-sm border-t border-white/5">
         <p>Copyright &copy; 2024 Double All Rights Reserved.</p>

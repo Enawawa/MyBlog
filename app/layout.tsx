@@ -45,6 +45,12 @@ function Navbar() {
           >
             🎮 飞跃小鸟
           </Link>
+          <Link
+            href="/#games"
+            className="px-3 py-2 rounded-lg text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-all"
+          >
+            🕹️ 3D游戏
+          </Link>
         </nav>
       </div>
     </header>
