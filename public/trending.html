@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="title" content="设计灵感 - Double's Blog">
+    <meta name="description" content="精选设计产品与创意灵感，纪录片、书籍和科技产品推荐。">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#000000">
+
+    <!-- Phosphor Icons -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css">
+
+    <title>设计灵感 - Double's Blog</title>
+    <link rel="stylesheet" type="text/css" href="trending.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="ph ph-list" id="menu-icon"></i>
+        </button>
+
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+        <!-- Left Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-header">
+                        <span class="logo-icon">
+                            <i class="ph ph-star" style="font-size:20px;color:#fff;"></i>
+                        </span>
+                        <h1>trending.design</h1>
+                    </div>
+                    <p>Curated products for designers</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="back-link">
+                    <i class="ph ph-arrow-left"></i>
+                    返回博客首页
+                </a>
+
+                <!-- Featured Section -->
+                <div class="nav-section">
+                    <h3 class="nav-section-title">Featured</h3>
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" data-category="all">
+                                <span class="nav-link-icon">
+                                    <i class="ph ph-star"></i>
+                                </span>
+                                Featured Products
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Categories Section -->
+                <div class="nav-section">
+                    <h3 class="nav-section-title">Categories</h3>
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-category="documentary">
+                                <span class="nav-link-icon">
+                                    <i class="ph ph-film-strip"></i>
+                                </span>
+                                Design Documentaries
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-category="book">
+                                <span class="nav-link-icon">
+                                    <i class="ph ph-books"></i>
+                                </span>
+                                Design Books
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-category="tech">
+                                <span class="nav-link-icon">
+                                    <i class="ph ph-cpu"></i>
+                                </span>
+                                Design Tech
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Content Header -->
+            <header class="content-header">
+                <h1 class="content-title" id="page-title">Featured Products</h1>
+                <p class="content-subtitle" id="page-subtitle">Hand-picked products that inspire creativity</p>
+                <p class="content-note"><span>We independently review everything we recommend. When you buy through our links, we may earn a commission.</span> <a href="#">Learn more</a></p>
+            </header>
+
+            <!-- Tag Filters -->
+            <div class="tag-filters">
+                <div class="tag-tabs">
+                    <button class="tag-tab active" data-tag="all">All</button>
+                    <button class="tag-tab" data-tag="documentary">Documentaries</button>
+                    <button class="tag-tab" data-tag="book">Books</button>
+                    <button class="tag-tab" data-tag="tech">Tech</button>
+                </div>
+            </div>
+
+            <!-- Products Container -->
+            <div class="products-container">
+                <div class="products-grid" id="products-grid">
+
+                    <!-- Product 1: OB-4 -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="https://teenage.engineering/products/ob-4" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688b9e9a9e40f_1753980570.webp"
+                                     alt="OB-4 Portable Speaker"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">OB-4 Portable Bluetooth Wireless Stereo Speaker</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Teenage Engineering</span>
+                            </div>
+                            <p class="product-description">The OB-4 is a portable, high-fidelity speaker with a built-in looping radio and intuitive interface that reimagines how we interact with sound.</p>
+                            <a href="https://teenage.engineering/products/ob-4" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 2: Helvetica -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt0847241/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/68894bf2abbfa_1753828338.jpg"
+                                     alt="Helvetica"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Helvetica</h3>
+                            <p class="product-description">Helvetica examines the impact of a single typeface on graphic design, visual culture, and the way we communicate in the modern world.</p>
+                            <a href="https://www.imdb.com/title/tt0847241/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 3: The Shape of Design -->
+                    <div class="product-card" data-category="book">
+                        <div class="product-image">
+                            <a href="https://shapeofdesignbook.com/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688a5a60990f6_1753897568.webp"
+                                     alt="The Shape of Design"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Books</span>
+                            <h3 class="product-name">The Shape of Design</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Frank Chimero</span>
+                            </div>
+                            <p class="product-description">A reflection on the creative process that emphasizes storytelling, purpose, craft, and the balance between how and why in making work for others.</p>
+                            <a href="https://shapeofdesignbook.com/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 4: Eames -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt1972591/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688954bda4277_1753830589.webp"
+                                     alt="Eames: The Architect and the Painter"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Eames: The Architect and the Painter</h3>
+                            <p class="product-description">Eames: The Architect and the Painter explores the visionary work and dynamic partnership of Charles and Ray Eames.</p>
+                            <a href="https://www.imdb.com/title/tt1972591/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 5: Grid Systems -->
+                    <div class="product-card" data-category="book">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/6889bef676a60_1753857782.webp"
+                                     alt="Grid Systems in Graphic Design"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Books</span>
+                            <h3 class="product-name">Grid Systems in Graphic Design</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Josef Müller-Brockmann</span>
+                            </div>
+                            <p class="product-description">Grid Systems in Graphic Design presents the fundamentals of using grids to create clear, structured, and visually harmonious layouts.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 6: Objectified -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt1241325/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/68895e5b81cdd_1753833051.webp"
+                                     alt="Objectified"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Objectified</h3>
+                            <p class="product-description">Objectified looks at the creativity behind everyday objects and the designers who shape our world.</p>
+                            <a href="https://www.imdb.com/title/tt1241325/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 7: Beautiful Losers -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt0430031/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688951599ea05_1753829721.jpg"
+                                     alt="Beautiful Losers"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Beautiful Losers</h3>
+                            <p class="product-description">Beautiful Losers celebrates a group of outsider artists who turned underground subcultures into influential art.</p>
+                            <a href="https://www.imdb.com/title/tt0430031/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 8: Art & Copy -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt0430090/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/68894cc517d85_1753828549.jpg"
+                                     alt="Art and Copy"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Art &amp; Copy</h3>
+                            <p class="product-description">Art &amp; Copy reveals the powerful stories and creative minds behind some of the most iconic advertising campaigns in history.</p>
+                            <a href="https://www.imdb.com/title/tt0430090/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 9: Design as Art -->
+                    <div class="product-card" data-category="book">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/6889a8cfeae98_1753852111.webp"
+                                     alt="Design as Art"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Books</span>
+                            <h3 class="product-name">Design as Art</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Bruno Munari</span>
+                            </div>
+                            <p class="product-description">Design as Art champions the idea that everyday objects can be both functional and beautiful, blending design with artistic expression.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 10: Leica M11 -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688af8e4add07_1753938148.webp"
+                                     alt="Leica M11"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">M11 Digital Rangefinder Camera</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Leica</span>
+                            </div>
+                            <p class="product-description">The Leica M11 blends classic rangefinder design with cutting-edge digital technology for unparalleled manual photography precision.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 11: A Designer's Art -->
+                    <div class="product-card" data-category="book">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/6889b40800dc3_1753854984.webp"
+                                     alt="A Designer's Art"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Books</span>
+                            <h3 class="product-name">A Designer&apos;s Art</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Paul Rand</span>
+                            </div>
+                            <p class="product-description">A Designer's Art explores the principles of graphic design through insightful essays and iconic visual examples.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 12: Push 3 -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688be0b4c6f89_1753997492.webp"
+                                     alt="Ableton Push 3"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">Push 3</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Ableton</span>
+                            </div>
+                            <p class="product-description">The Push 3 is a standalone instrument and controller that lets you create, perform, and produce music with hands-on control and seamless Ableton Live integration.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 13: Just Like Being There -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/68895c1babc92_1753832475.webp"
+                                     alt="Just Like Being There"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Just Like Being There</h3>
+                            <p class="product-description">Just Like Being There explores the vibrant world of gig poster art and the community of artists behind it.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 14: Fujifilm X100VI -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688c5ede847b7_1754029790.webp"
+                                     alt="Fujifilm X100VI"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">Fujifilm X100VI</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Fujifilm</span>
+                            </div>
+                            <p class="product-description">The Fujifilm X100VI blends timeless design with modern imaging tech, offering a premium compact camera perfect for street and travel photography.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 15: The Visual Display -->
+                    <div class="product-card" data-category="book">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688a6aa4bf604_1753901732.webp"
+                                     alt="The Visual Display of Quantitative Information"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Books</span>
+                            <h3 class="product-name">The Visual Display of Quantitative Information</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Edward Tufte</span>
+                            </div>
+                            <p class="product-description">A classic guide to data visualization, focusing on clarity, precision, and efficiency in the graphical presentation of complex information.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 16: OP-1 -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688aa73713836_1753917239.webp"
+                                     alt="OP-1 Field"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">OP-1 Field Portable Synthesizer</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Teenage Engineering</span>
+                            </div>
+                            <p class="product-description">The OP-1 is a compact, all-in-one synthesizer, sampler, and sequencer that blends playful design with powerful music-making tools.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 17: AirPods Pro 2 -->
+                    <div class="product-card" data-category="tech">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688af6151dc1b_1753937429.webp"
+                                     alt="AirPods Pro 2"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Tech</span>
+                            <h3 class="product-name">AirPods Pro 2 Wireless Earbuds</h3>
+                            <div class="product-brand">
+                                <span class="brand-name">Apple</span>
+                            </div>
+                            <p class="product-description">Apple AirPods Pro 2 combine immersive sound, active noise cancellation, and a sleek, comfortable design for a premium wireless listening experience.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 18: Antonio Gaudi -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="#" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688955c7ca303_1753830855.webp"
+                                     alt="Antonio Gaudi"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Antonio Gaudi</h3>
+                            <p class="product-description">Antonio Gaudi presents the visionary architecture and organic forms of the legendary Catalan modernist.</p>
+                            <a href="#" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                    <!-- Product 19: Jodorowsky's Dune -->
+                    <div class="product-card" data-category="documentary">
+                        <div class="product-image">
+                            <a href="https://www.imdb.com/title/tt1935156/" target="_blank" rel="noopener">
+                                <img src="https://trending.design/uploads/688958e350f60_1753831651.webp"
+                                     alt="Jodorowsky's Dune"
+                                     loading="lazy">
+                            </a>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">Design Documentaries</span>
+                            <h3 class="product-name">Jodorowsky&apos;s Dune</h3>
+                            <p class="product-description">Jodorowsky's Dune tells the story of an ambitious sci-fi film that was never made but changed cinema forever.</p>
+                            <a href="https://www.imdb.com/title/tt1935156/" class="product-button" target="_blank" rel="noopener">View →</a>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="empty-state" style="display: none;">
+                    <div class="empty-state-icon">
+                        <i class="ph ph-package"></i>
+                    </div>
+                    <h3>No products found</h3>
+                    <p>We're working on adding products to this category. Check back soon!</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleMobileMenu() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.querySelector('.mobile-overlay');
+            var menuIcon = document.getElementById('menu-icon');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            menuIcon.className = sidebar.classList.contains('open') ? 'ph ph-x' : 'ph ph-list';
+        }
+
+        function closeMobileMenu() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.querySelector('.mobile-overlay');
+            var menuIcon = document.getElementById('menu-icon');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            menuIcon.className = 'ph ph-list';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var navLinks = document.querySelectorAll('.nav-link[data-category]');
+            var tagTabs = document.querySelectorAll('.tag-tab[data-tag]');
+            var cards = document.querySelectorAll('.product-card');
+            var emptyState = document.getElementById('empty-state');
+            var grid = document.getElementById('products-grid');
+            var pageTitle = document.getElementById('page-title');
+            var pageSubtitle = document.getElementById('page-subtitle');
+
+            var titles = {
+                'all': 'Featured Products',
+                'documentary': 'Design Documentaries',
+                'book': 'Design Books',
+                'tech': 'Design Tech'
+            };
+            var subtitles = {
+                'all': 'Hand-picked products that inspire creativity',
+                'documentary': 'Films exploring design, architecture, and creative culture',
+                'book': 'Essential reading for every designer\'s bookshelf',
+                'tech': 'Tools and gadgets that spark creative inspiration'
+            };
+
+            function filterByCategory(category) {
+                var count = 0;
+                cards.forEach(function (card) {
+                    var show = category === 'all' || card.dataset.category === category;
+                    card.style.display = show ? '' : 'none';
+                    if (show) count++;
+                });
+                grid.style.display = count > 0 ? '' : 'none';
+                emptyState.style.display = count > 0 ? 'none' : '';
+                pageTitle.textContent = titles[category] || 'Featured Products';
+                pageSubtitle.textContent = subtitles[category] || '';
+            }
+
+            function setActiveNav(cat) {
+                navLinks.forEach(function (l) {
+                    l.classList.toggle('active', l.dataset.category === cat);
+                });
+            }
+
+            function setActiveTag(tag) {
+                tagTabs.forEach(function (t) {
+                    t.classList.toggle('active', t.dataset.tag === tag);
+                });
+            }
+
+            navLinks.forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var cat = this.dataset.category;
+                    setActiveNav(cat);
+                    setActiveTag(cat);
+                    filterByCategory(cat);
+                    closeMobileMenu();
+                });
+            });
+
+            tagTabs.forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    var tag = this.dataset.tag;
+                    setActiveTag(tag);
+                    setActiveNav(tag);
+                    filterByCategory(tag);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

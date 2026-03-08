@@ -88,6 +88,20 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          <a href="/trending.html" className="group">
+            <div className="glass rounded-2xl overflow-hidden glass-hover border-emerald-500/20">
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-emerald-600/20 to-teal-600/20 flex items-center justify-center">
+                <span className="text-6xl">✦</span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-lg font-semibold text-emerald-400">设计灵感</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  精选设计产品与创意推荐
+                </p>
+              </div>
+            </div>
+          </a>
         </div>
       </section>
 

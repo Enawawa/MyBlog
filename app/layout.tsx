@@ -51,6 +51,12 @@ function Navbar() {
           >
             🕹️ 3D游戏
           </Link>
+          <a
+            href="/trending.html"
+            className="px-3 py-2 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all"
+          >
+            ✦ 设计灵感
+          </a>
         </nav>
       </div>
     </header>
