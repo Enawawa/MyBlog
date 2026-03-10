@@ -61,6 +61,20 @@ export default function Home() {
             </div>
           </Link>
 
+          <Link href="/nonsense-poetry" className="group">
+            <div className="glass rounded-2xl overflow-hidden glass-hover border-rose-500/20">
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-rose-600/20 to-pink-600/20 flex items-center justify-center">
+                <span className="text-6xl">📜</span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-lg font-semibold text-rose-400">废话文学</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  打工人废话诗生成器
+                </p>
+              </div>
+            </div>
+          </Link>
+
           <Link href="/clipboard" className="group">
             <div className="glass rounded-2xl overflow-hidden glass-hover border-indigo-500/20">
               <div className="relative aspect-[4/3] bg-gradient-to-br from-indigo-600/20 to-purple-600/20 flex items-center justify-center">

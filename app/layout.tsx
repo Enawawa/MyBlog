@@ -51,6 +51,12 @@ function Navbar() {
           >
             🕹️ 3D游戏
           </Link>
+          <Link
+            href="/nonsense-poetry"
+            className="px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
+          >
+            📜 废话文学
+          </Link>
           <a
             href="/trending.html"
             className="px-3 py-2 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all"
