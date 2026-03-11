@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>后厨防线：锅心守卫战</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+canvas{display:block;margin:0 auto;touch-action:none}
+#ui-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;z-index:10;backdrop-filter:blur(8px)}
+.overlay h1{font-size:clamp(1.8rem,5vw,2.8rem);color:#fff;margin-bottom:.3em;text-shadow:0 0 20px rgba(255,165,0,.5)}
+.overlay h2{font-size:clamp(1rem,3vw,1.5rem);color:#fbbf24;margin-bottom:1.5em}
+.overlay p{color:#94a3b8;font-size:clamp(.8rem,2.2vw,1rem);max-width:320px;text-align:center;line-height:1.6;margin-bottom:1em}
+.btn{background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border:none;padding:.8em 2em;border-radius:12px;font-size:clamp(.9rem,2.5vw,1.1rem);font-weight:700;cursor:pointer;pointer-events:auto;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 15px rgba(249,115,22,.4);margin:.4em}
+.btn:hover{transform:scale(1.05)}
+.btn:active{transform:scale(.95)}
+.btn-sm{padding:.6em 1.2em;font-size:clamp(.75rem,2vw,.9rem)}
+.btn-blue{background:linear-gradient(135deg,#3b82f6,#6366f1)}
+.btn-green{background:linear-gradient(135deg,#22c55e,#10b981)}
+.char-select{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:1em 0}
+.char-card{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:1em;width:clamp(140px,30vw,180px);cursor:pointer;pointer-events:auto;transition:all .2s;text-align:center}
+.char-card:hover,.char-card.selected{border-color:#f97316;background:rgba(249,115,22,.15);transform:translateY(-4px)}
+.char-card .emoji{font-size:2.5em;display:block;margin-bottom:.3em}
+.char-card .name{color:#fff;font-weight:700;font-size:.95rem}
+.char-card .desc{color:#94a3b8;font-size:.7rem;margin-top:.3em;line-height:1.4}
+.upgrade-cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:1em 0;max-width:500px}
+.upgrade-card{background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);border-radius:14px;padding:1em;width:clamp(130px,28vw,155px);cursor:pointer;pointer-events:auto;transition:all .2s;text-align:center}
+.upgrade-card:hover{border-color:#fbbf24;background:rgba(251,191,36,.1);transform:translateY(-4px)}
+.upgrade-card .emoji{font-size:2em;display:block;margin-bottom:.4em}
+.upgrade-card .uname{color:#fff;font-weight:700;font-size:.85rem}
+.upgrade-card .udesc{color:#94a3b8;font-size:.65rem;margin-top:.3em;line-height:1.4}
+.upgrade-card .rarity{font-size:.6rem;padding:2px 8px;border-radius:8px;display:inline-block;margin-top:.4em;font-weight:600}
+.rarity-common{background:rgba(148,163,184,.2);color:#94a3b8}
+.rarity-rare{background:rgba(59,130,246,.2);color:#60a5fa}
+.rarity-legend{background:rgba(251,191,36,.2);color:#fbbf24}
+.hud-top{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
+.temp-bar-wrap{background:rgba(0,0,0,.5);border-radius:8px;padding:4px 8px;min-width:120px}
+.temp-label{color:#fbbf24;font-size:.65rem;font-weight:700}
+.temp-bar-outer{width:100%;height:8px;background:rgba(255,255,255,.1);border-radius:4px;margin-top:2px;overflow:hidden}
+.temp-bar-inner{height:100%;border-radius:4px;transition:width .3s}
+.wave-info{background:rgba(0,0,0,.5);border-radius:8px;padding:4px 10px;color:#e2e8f0;font-size:.7rem;font-weight:600;text-align:right}
+.skill-btns{position:absolute;bottom:12px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:5}
+.skill-btn{width:48px;height:48px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.5);color:#fff;font-size:1.2em;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;transition:all .15s;position:relative}
+.skill-btn:active{transform:scale(.9)}
+.skill-btn.on-cd{opacity:.4;pointer-events:none}
+.skill-cd{position:absolute;bottom:-2px;right:-2px;font-size:.5rem;background:#ef4444;color:#fff;border-radius:4px;padding:1px 3px}
+.back-btn{position:absolute;top:8px;left:8px;z-index:20;pointer-events:auto}
+.score-display{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);border-radius:8px;padding:3px 12px;color:#fbbf24;font-size:.75rem;font-weight:700;z-index:5;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<div id="ui-layer"></div>
+<script>
+// ============================================================
+// 后厨防线：锅心守卫战 — 完整 MVP
+// ============================================================
+const C = document.getElementById('gc');
+const ctx = C.getContext('2d');
+const UI = document.getElementById('ui-layer');
+
+// ---------- Responsive canvas ----------
+let W, H, SCALE;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const maxW = 420, maxH = window.innerHeight;
+  W = Math.min(window.innerWidth, maxW);
+  H = maxH;
+  C.width = W * dpr; C.height = H * dpr;
+  C.style.width = W + 'px'; C.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  SCALE = W / 420;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---------- Constants ----------
+const TRACK_Y_RATIO = 0.88;
+const WOK_Y_RATIO = 0.92;
+const COLORS = {
+  bg1: '#1a1a2e', bg2: '#16213e', floor: '#2d1b0e',
+  floorLight: '#3d2b1a', wokRim: '#8B7355', wokInner: '#4a3728',
+  tempHigh: '#ef4444', tempMid: '#f97316', tempLow: '#22c55e',
+  fire: '#ff6b35'
+};
+
+// ---------- Characters ----------
+const CHARACTERS = [
+  { id: 'afu', name: '家常主厨·阿福', emoji: '👨‍🍳', desc: '均衡全能，新手友好\n双管炮台 · 馒头弹', color: '#f97316',
+    bullet: 'mantou', fireRate: 400, bulletCount: 2, speed: 3.5, passive: '锅气加持：连续击杀+5%伤害', skill: { name: '颠锅清屏', emoji: '🍳', cd: 15000, desc: '前方扇形击退+清弹幕' }},
+  { id: 'lina', name: '暴躁西点师·莉娜', emoji: '👩‍🍳', desc: 'AOE爆发型，进阶向\n喷枪散射 · 曲奇弹', color: '#ec4899',
+    bullet: 'cookie', fireRate: 300, bulletCount: 3, speed: 3, passive: '糖分暴击：基础暴击率30%', skill: { name: '奶油封锁', emoji: '🧁', cd: 12000, desc: '生成奶油墙阻挡+减速' }},
+  { id: 'kenta', name: '佛系日料师傅·健太', emoji: '🧑‍🍳', desc: '召唤控制型，懒人向\n穿透发射 · 刺身弹', color: '#3b82f6',
+    bullet: 'sashimi', fireRate: 600, bulletCount: 1, speed: 2.8, passive: '食灵安抚：召唤物+3上限', skill: { name: '寿司大军', emoji: '🍣', cd: 18000, desc: '召唤6个寿司灵体索敌' }}
+];
+
+// ---------- Bullet Types ----------
+const BULLET_TYPES = {
+  mantou: { name: '馒头弹', emoji: '🥟', dmg: 12, spd: 6, size: 10, color: '#fde68a', type: 'straight', pierce: 0, aoe: 15 },
+  cookie: { name: '曲奇弹', emoji: '🍪', dmg: 8, spd: 7, size: 8, color: '#d97706', type: 'spread', pierce: 0, aoe: 10 },
+  sashimi: { name: '刺身弹', emoji: '🍣', dmg: 14, spd: 5, size: 9, color: '#fb7185', type: 'straight', pierce: 3, aoe: 0 },
+  rice: { name: '米饭弹', emoji: '🍚', dmg: 5, spd: 9, size: 6, color: '#fff', type: 'burst', pierce: 0, aoe: 0 },
+  noodle: { name: '面条弹', emoji: '🍜', dmg: 10, spd: 5, size: 8, color: '#fbbf24', type: 'straight', pierce: 2, aoe: 0, slow: .5 },
+  veggie: { name: '蔬菜弹', emoji: '🥬', dmg: 7, spd: 6, size: 9, color: '#4ade80', type: 'spread', pierce: 0, aoe: 12 },
+  ice: { name: '冰块弹', emoji: '🧊', dmg: 8, spd: 5, size: 10, color: '#7dd3fc', type: 'straight', pierce: 0, aoe: 8, freeze: 1 },
+  bun: { name: '包子弹', emoji: '🥟', dmg: 18, spd: 4, size: 14, color: '#fde68a', type: 'arc', pierce: 0, aoe: 30, split: 3 },
+  chili: { name: '辣椒弹', emoji: '🌶️', dmg: 6, spd: 7, size: 8, color: '#ef4444', type: 'straight', pierce: 1, aoe: 0, burn: 3 },
+  cheese: { name: '芝士弹', emoji: '🧀', dmg: 10, spd: 4, size: 12, color: '#facc15', type: 'straight', pierce: 0, aoe: 0, trap: 2 },
+  durian: { name: '榴莲弹', emoji: '🥝', dmg: 15, spd: 3, size: 16, color: '#84cc16', type: 'arc', pierce: 0, aoe: 40, zone: 3 },
+};
+
+// ---------- Enemy Types ----------
+const ENEMY_TYPES = {
+  cabbage: { name: '白菜怪', emoji: '🥬', hp: 30, spd: 1, size: 18, color: '#4ade80', dmg: 5, score: 10, shoots: false },
+  potato: { name: '土豆怪', emoji: '🥔', hp: 40, spd: 1.5, size: 16, color: '#a3a369', dmg: 8, score: 15, shoots: false },
+  pork: { name: '五花肉怪', emoji: '🥩', hp: 50, spd: 2, size: 17, color: '#f87171', dmg: 10, score: 20, shoots: false },
+  can: { name: '过期罐头怪', emoji: '🥫', hp: 35, spd: .8, size: 15, color: '#94a3b8', dmg: 6, score: 15, shoots: true, fireRate: 2000 },
+  noodleE: { name: '面条怪', emoji: '🍝', hp: 45, spd: 1.2, size: 18, color: '#fbbf24', dmg: 7, score: 18, shoots: false },
+  eliteCabbage: { name: '烂菜叶巨人', emoji: '🥬', hp: 300, spd: .6, size: 35, color: '#166534', dmg: 20, score: 100, shoots: true, fireRate: 1500, elite: true },
+  eliteMeat: { name: '冻肉屠夫', emoji: '🥩', hp: 400, spd: 1.8, size: 30, color: '#991b1b', dmg: 25, score: 120, shoots: false, elite: true, charge: true },
+  boss1: { name: '地沟油史莱姆', emoji: '🫠', hp: 800, spd: .3, size: 50, color: '#365314', dmg: 15, score: 500, shoots: true, fireRate: 800, boss: true },
+};
+
+// ---------- Upgrades ----------
+const UPGRADES = [
+  { name: '双管炮台', emoji: '🔫', desc: '子弹数量+1', rarity: 'common', apply: g => { g.player.bulletCount++; }},
+  { name: '速射滑轨', emoji: '⚡', desc: '射速+30%', rarity: 'common', apply: g => { g.player.fireRate *= .7; }},
+  { name: '散射炮口', emoji: '🌀', desc: '扇形散射+3', rarity: 'rare', apply: g => { g.player.bulletCount += 3; g.player.spread = true; }},
+  { name: '穿透导轨', emoji: '🔱', desc: '穿透+2', rarity: 'rare', apply: g => { g.player.extraPierce += 2; }},
+  { name: '盐·全伤害+10%', emoji: '🧂', desc: '所有伤害+10%', rarity: 'common', apply: g => { g.player.dmgMul += .1; }},
+  { name: '糖·暴击率+10%', emoji: '🍬', desc: '暴击率+10%', rarity: 'common', apply: g => { g.player.critRate += .1; }},
+  { name: '孜然·暴击伤害+50%', emoji: '✨', desc: '暴击伤害+50%', rarity: 'rare', apply: g => { g.player.critDmg += .5; }},
+  { name: '豆瓣酱·AOE+30%', emoji: '🫙', desc: 'AOE范围+30%', rarity: 'rare', apply: g => { g.player.aoeMul += .3; }},
+  { name: '料酒·技能冷却-25%', emoji: '🍶', desc: '技能CD-25%', rarity: 'rare', apply: g => { g.player.cdMul *= .75; }},
+  { name: '锅心增幅器', emoji: '🔥', desc: '温度越高伤害越高', rarity: 'legend', apply: g => { g.player.tempDmg = true; }},
+  { name: '全自动炮台', emoji: '🤖', desc: '射速翻倍', rarity: 'legend', apply: g => { g.player.fireRate *= .5; }},
+  { name: '秘制老酱', emoji: '🏺', desc: '全属性+30%', rarity: 'legend', apply: g => { g.player.dmgMul += .3; g.player.speed += 1; g.player.critRate += .15; }},
+  { name: '馒头弹', emoji: '🥟', desc: '切换：稳定直射+爆炸', rarity: 'common', apply: g => { g.player.bulletType = 'mantou'; }, isBullet: true },
+  { name: '米饭弹', emoji: '🍚', desc: '切换：高速连发', rarity: 'common', apply: g => { g.player.bulletType = 'rice'; g.player.fireRate *= .6; }, isBullet: true },
+  { name: '面条弹', emoji: '🍜', desc: '切换：穿透+减速', rarity: 'common', apply: g => { g.player.bulletType = 'noodle'; }, isBullet: true },
+  { name: '冰块弹', emoji: '🧊', desc: '切换：命中冻结', rarity: 'rare', apply: g => { g.player.bulletType = 'ice'; }, isBullet: true },
+  { name: '辣椒弹', emoji: '🌶️', desc: '切换：持续灼烧', rarity: 'rare', apply: g => { g.player.bulletType = 'chili'; }, isBullet: true },
+  { name: '包子弹', emoji: '🥟', desc: '切换：抛物线+分裂爆炸', rarity: 'rare', apply: g => { g.player.bulletType = 'bun'; }, isBullet: true },
+  { name: '榴莲弹', emoji: '🥝', desc: '切换：领域持续伤害', rarity: 'legend', apply: g => { g.player.bulletType = 'durian'; }, isBullet: true },
+  { name: '拍黄瓜', emoji: '🥒', desc: '大招：前方清场+击退', rarity: 'common', apply: g => { g.player.skill2 = { name:'拍黄瓜', emoji:'🥒', cd:20000, desc:'前方清场' }; }, isSkill: true },
+  { name: '佛跳墙', emoji: '🍲', desc: '大招：回满温度+全属性+50%', rarity: 'legend', apply: g => { g.player.skill2 = { name:'佛跳墙', emoji:'🍲', cd:45000, desc:'回满温度' }; }, isSkill: true },
+];
+
+// ---------- Wave definitions ----------
+function buildWaves(chapter) {
+  const waves = [];
+  const mul = 1 + (chapter - 1) * .3;
+  const baseTypes = ['cabbage', 'potato', 'pork', 'can', 'noodleE'];
+  for (let w = 0; w < 5; w++) {
+    const enemies = [];
+    const count = Math.floor((4 + w * 2 + chapter * 2) * mul);
+    for (let i = 0; i < count; i++) {
+      enemies.push(baseTypes[Math.floor(Math.random() * Math.min(2 + chapter, 5))]);
+    }
+    waves.push({ enemies, delay: Math.max(400, 800 - chapter * 80) });
+  }
+  const elites = chapter >= 2 ? ['eliteCabbage', 'eliteMeat'] : ['eliteCabbage'];
+  waves.push({ enemies: [elites[Math.floor(Math.random() * elites.length)]], delay: 0 });
+  waves.push({ enemies: ['boss1'], delay: 0 });
+  return waves;
+}
+
+// ---------- Game State ----------
+let game = null;
+let state = 'menu';
+let selectedChar = 0;
+let inputX = 0, inputActive = false, inputStartX = 0, playerStartX = 0;
+let keys = {};
+
+class GameState {
+  constructor(charIdx) {
+    const ch = CHARACTERS[charIdx];
+    this.chapter = 1;
+    this.waveIdx = 0;
+    this.waves = buildWaves(1);
+    this.score = 0;
+    this.temp = 100;
+    this.maxTemp = 100;
+    this.killStreak = 0;
+
+    this.player = {
+      x: W / 2, y: H * TRACK_Y_RATIO, size: 20,
+      speed: ch.speed, bulletType: ch.bullet,
+      fireRate: ch.fireRate, bulletCount: ch.bulletCount,
+      lastFire: 0, spread: ch.bullet === 'cookie',
+      dmgMul: 1, critRate: ch.id === 'lina' ? .3 : .05, critDmg: 2,
+      aoeMul: 1, cdMul: 1, extraPierce: 0, tempDmg: false,
+      char: ch, skill1: ch.skill, skill1CD: 0, skill2: null, skill2CD: 0,
+      upgrades: [],
+    };
+
+    this.wokX = W / 2;
+    this.wokY = H * WOK_Y_RATIO;
+    this.wokSize = 28;
+
+    this.bullets = [];
+    this.enemies = [];
+    this.eBullets = [];
+    this.pickups = [];
+    this.particles = [];
+    this.zones = [];
+    this.summons = [];
+    this.shields = [];
+
+    this.spawning = false;
+    this.spawnQueue = [];
+    this.spawnTimer = 0;
+    this.waveComplete = false;
+    this.showUpgrade = false;
+    this.upgradeOptions = [];
+    this.paused = false;
+    this.gameOver = false;
+    this.victory = false;
+    this.bossWarning = 0;
+  }
+}
+
+// ---------- Particle system ----------
+function spawnParticles(x, y, color, count, speed, life) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * (speed || 2) + .5;
+    game.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: life || 30, maxLife: life || 30, color, size: Math.random() * 3 + 1 });
+  }
+}
+
+// ---------- Shooting ----------
+function fireBullets() {
+  const p = game.player;
+  const bt = BULLET_TYPES[p.bulletType];
+  const now = performance.now();
+  if (now - p.lastFire < p.fireRate) return;
+  p.lastFire = now;
+
+  const count = p.bulletCount;
+  const spreadAngle = p.spread ? .4 : .15;
+
+  for (let i = 0; i < count; i++) {
+    let angle = -Math.PI / 2;
+    if (count > 1) {
+      angle += (i / (count - 1) - .5) * spreadAngle * 2;
+    }
+
+    let bx = p.x, by = p.y - p.size;
+    let vx = Math.cos(angle) * bt.spd;
+    let vy = Math.sin(angle) * bt.spd;
+
+    game.bullets.push({
+      x: bx, y: by, vx, vy, size: bt.size * SCALE,
+      dmg: bt.dmg * p.dmgMul * (p.tempDmg ? (1 + game.temp / 100) : 1),
+      color: bt.color, type: bt.type, pierce: bt.pierce + p.extraPierce,
+      aoe: bt.aoe * p.aoeMul, slow: bt.slow || 0, freeze: bt.freeze || 0,
+      burn: bt.burn || 0, split: bt.split || 0, zone: bt.zone || 0,
+      trap: bt.trap || 0, emoji: bt.emoji, pierced: 0,
+      crit: Math.random() < p.critRate,
+      arcT: 0, arcStartY: by,
+    });
+  }
+}
+
+// ---------- Skill activation ----------
+function activateSkill(slot) {
+  const p = game.player;
+  const sk = slot === 1 ? p.skill1 : p.skill2;
+  if (!sk) return;
+  const cdKey = slot === 1 ? 'skill1CD' : 'skill2CD';
+  if (p[cdKey] > 0) return;
+
+  p[cdKey] = sk.cd * p.cdMul;
+
+  if (sk.name === '颠锅清屏') {
+    game.eBullets = [];
+    game.enemies.forEach(e => { if (!e.boss) { e.hp -= 50 * p.dmgMul; e.vy = -3; } });
+    spawnParticles(p.x, p.y - 40, '#fbbf24', 30, 5, 20);
+  } else if (sk.name === '奶油封锁') {
+    game.shields.push({ x: 0, y: p.y - 80, w: W, h: 20, life: 5000, color: '#fce7f3', dmg: 2, slow: .7 });
+    spawnParticles(W / 2, p.y - 80, '#fce7f3', 20, 3, 25);
+  } else if (sk.name === '寿司大军') {
+    for (let i = 0; i < 6; i++) {
+      game.summons.push({ x: p.x + (Math.random() - .5) * 100, y: p.y - 50 - Math.random() * 100, size: 12, life: 8000, dmg: 8 * p.dmgMul, emoji: '🍣', targetE: null, spd: 2 });
+    }
+  } else if (sk.name === '拍黄瓜') {
+    game.eBullets = [];
+    game.enemies.forEach(e => { e.hp -= 30 * p.dmgMul; e.vy = -2; });
+    spawnParticles(p.x, p.y - 60, '#4ade80', 25, 4, 20);
+  } else if (sk.name === '佛跳墙') {
+    game.temp = Math.min(game.maxTemp, game.maxTemp);
+    game.player.dmgMul += .5;
+    setTimeout(() => { if (game) game.player.dmgMul -= .5; }, 10000);
+    spawnParticles(game.wokX, game.wokY, '#fbbf24', 40, 5, 30);
+  }
+}
+
+// ---------- Spawning ----------
+function startWave() {
+  if (game.waveIdx >= game.waves.length) {
+    if (game.chapter < 3) {
+      game.chapter++;
+      game.waveIdx = 0;
+      game.waves = buildWaves(game.chapter);
+      game.showUpgrade = true;
+      game.upgradeOptions = getUpgradeOptions();
+    } else {
+      game.victory = true;
+      state = 'victory';
+      renderUI();
+    }
+    return;
+  }
+  const wave = game.waves[game.waveIdx];
+  game.spawnQueue = [...wave.enemies];
+  game.spawning = true;
+  game.spawnTimer = 0;
+  game.waveComplete = false;
+
+  if (wave.enemies.includes('boss1')) {
+    game.bossWarning = 120;
+  }
+}
+
+function spawnEnemy(typeId) {
+  const et = ENEMY_TYPES[typeId];
+  const e = {
+    x: Math.random() * (W - 60) + 30,
+    y: -et.size,
+    vx: (Math.random() - .5) * .5,
+    vy: et.spd * (.8 + Math.random() * .4),
+    size: et.size * SCALE,
+    hp: et.hp, maxHp: et.hp, dmg: et.dmg,
+    color: et.color, emoji: et.emoji, name: et.name,
+    score: et.score, shoots: et.shoots,
+    fireRate: et.fireRate || 9999, lastFire: 0,
+    elite: et.elite, boss: et.boss,
+    charge: et.charge, chargeTimer: 0,
+    slow: 1, slowTimer: 0,
+    frozen: false, frozenTimer: 0,
+    burnDmg: 0, burnTimer: 0,
+    hitFlash: 0,
+  };
+  game.enemies.push(e);
+}
+
+// ---------- Upgrade options ----------
+function getUpgradeOptions() {
+  const shuffled = [...UPGRADES].sort(() => Math.random() - .5);
+  return shuffled.slice(0, 3);
+}
+
+function applyUpgrade(idx) {
+  const upg = game.upgradeOptions[idx];
+  upg.apply(game);
+  game.player.upgrades.push(upg.name);
+  game.showUpgrade = false;
+  game.waveIdx++;
+  startWave();
+  renderUI();
+}
+
+// ---------- Update logic ----------
+function update(dt) {
+  if (!game || game.paused || game.gameOver || game.victory || game.showUpgrade) return;
+  const p = game.player;
+
+  // Player movement
+  if (inputActive) {
+    p.x = Math.max(p.size, Math.min(W - p.size, playerStartX + (inputX - inputStartX)));
+  }
+  if (keys['a'] || keys['arrowleft']) p.x = Math.max(p.size, p.x - p.speed * dt * 60);
+  if (keys['d'] || keys['arrowright']) p.x = Math.min(W - p.size, p.x + p.speed * dt * 60);
+
+  // Skill cooldowns
+  if (p.skill1CD > 0) p.skill1CD = Math.max(0, p.skill1CD - dt * 1000);
+  if (p.skill2CD > 0) p.skill2CD = Math.max(0, p.skill2CD - dt * 1000);
+
+  // Auto fire
+  fireBullets();
+
+  // Boss warning
+  if (game.bossWarning > 0) game.bossWarning--;
+
+  // Spawn queue
+  if (game.spawning && game.spawnQueue.length > 0) {
+    game.spawnTimer -= dt * 1000;
+    if (game.spawnTimer <= 0) {
+      spawnEnemy(game.spawnQueue.shift());
+      game.spawnTimer = game.waves[game.waveIdx]?.delay || 500;
+    }
+  }
+
+  // Bullets
+  for (let i = game.bullets.length - 1; i >= 0; i--) {
+    const b = game.bullets[i];
+    if (b.type === 'arc') {
+      b.arcT += dt * 3;
+      b.x += b.vx * dt * 60;
+      b.y = b.arcStartY - Math.sin(b.arcT) * 150;
+      if (b.arcT > Math.PI) {
+        if (b.aoe > 0) {
+          game.enemies.forEach(e => {
+            if (Math.hypot(e.x - b.x, e.y - b.y) < b.aoe * SCALE) {
+              dealDamage(e, b);
+            }
+          });
+          spawnParticles(b.x, b.y, b.color, 12, 3, 15);
+          if (b.split > 0) {
+            for (let s = 0; s < b.split; s++) {
+              const a = Math.random() * Math.PI * 2;
+              game.bullets.push({ ...b, x: b.x + Math.cos(a) * 15, y: b.y + Math.sin(a) * 15, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, type: 'straight', split: 0, aoe: b.aoe * .5, dmg: b.dmg * .4, arcT: 0 });
+            }
+          }
+          if (b.zone > 0) {
+            game.zones.push({ x: b.x, y: b.y, radius: b.aoe * SCALE * 1.5, life: b.zone * 1000, dmg: b.dmg * .2, color: b.color });
+          }
+        }
+        game.bullets.splice(i, 1);
+        continue;
+      }
+    } else {
+      b.x += b.vx * dt * 60;
+      b.y += b.vy * dt * 60;
+    }
+
+    if (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20) {
+      game.bullets.splice(i, 1);
+      continue;
+    }
+
+    // Hit check
+    let hit = false;
+    for (let j = game.enemies.length - 1; j >= 0; j--) {
+      const e = game.enemies[j];
+      if (Math.hypot(e.x - b.x, e.y - b.y) < (e.size + b.size) * .7) {
+        dealDamage(e, b);
+
+        if (b.aoe > 0 && b.type !== 'arc') {
+          game.enemies.forEach(e2 => {
+            if (e2 !== e && Math.hypot(e2.x - b.x, e2.y - b.y) < b.aoe * SCALE) {
+              dealDamage(e2, { ...b, dmg: b.dmg * .5 });
+            }
+          });
+          spawnParticles(b.x, b.y, b.color, 8, 2, 12);
+        }
+
+        if (b.trap > 0) {
+          e.slow = .2;
+          e.slowTimer = b.trap * 1000;
+        }
+
+        b.pierced++;
+        if (b.pierced > b.pierce) { hit = true; break; }
+      }
+    }
+    if (hit) {
+      spawnParticles(b.x, b.y, b.color, 4, 1.5, 10);
+      game.bullets.splice(i, 1);
+    }
+  }
+
+  // Zones
+  for (let i = game.zones.length - 1; i >= 0; i--) {
+    const z = game.zones[i];
+    z.life -= dt * 1000;
+    if (z.life <= 0) { game.zones.splice(i, 1); continue; }
+    game.enemies.forEach(e => {
+      if (Math.hypot(e.x - z.x, e.y - z.y) < z.radius) {
+        e.hp -= z.dmg * dt;
+        e.slow = .5;
+        e.slowTimer = 500;
+      }
+    });
+  }
+
+  // Shields
+  for (let i = game.shields.length - 1; i >= 0; i--) {
+    const s = game.shields[i];
+    s.life -= dt * 1000;
+    if (s.life <= 0) { game.shields.splice(i, 1); continue; }
+    game.enemies.forEach(e => {
+      if (e.y + e.size > s.y && e.y - e.size < s.y + s.h) {
+        e.hp -= s.dmg * dt * 60;
+        e.slow = s.slow;
+        e.slowTimer = 500;
+        e.vy = Math.max(e.vy, -.5);
+      }
+    });
+  }
+
+  // Summons
+  for (let i = game.summons.length - 1; i >= 0; i--) {
+    const sm = game.summons[i];
+    sm.life -= dt * 1000;
+    if (sm.life <= 0) { game.summons.splice(i, 1); continue; }
+    let closest = null, closestD = Infinity;
+    game.enemies.forEach(e => {
+      const d = Math.hypot(e.x - sm.x, e.y - sm.y);
+      if (d < closestD) { closestD = d; closest = e; }
+    });
+    if (closest) {
+      const a = Math.atan2(closest.y - sm.y, closest.x - sm.x);
+      sm.x += Math.cos(a) * sm.spd;
+      sm.y += Math.sin(a) * sm.spd;
+      if (closestD < 20) {
+        closest.hp -= sm.dmg;
+        closest.hitFlash = 5;
+        spawnParticles(closest.x, closest.y, '#fbbf24', 3, 1, 8);
+      }
+    }
+  }
+
+  // Enemies
+  for (let i = game.enemies.length - 1; i >= 0; i--) {
+    const e = game.enemies[i];
+
+    if (e.frozenTimer > 0) { e.frozenTimer -= dt * 1000; e.frozen = e.frozenTimer > 0; }
+    if (e.slowTimer > 0) { e.slowTimer -= dt * 1000; if (e.slowTimer <= 0) e.slow = 1; }
+    if (e.burnTimer > 0) { e.burnTimer -= dt * 1000; e.hp -= e.burnDmg * dt; }
+    if (e.hitFlash > 0) e.hitFlash--;
+
+    if (!e.frozen) {
+      const spdMul = e.slow;
+      e.x += e.vx * dt * 60 * spdMul;
+      e.y += e.vy * dt * 60 * spdMul;
+
+      if (e.charge) {
+        e.chargeTimer += dt * 1000;
+        if (e.chargeTimer > 3000) {
+          e.vy = 4;
+          e.chargeTimer = 0;
+        }
+      }
+
+      if (e.x < e.size || e.x > W - e.size) e.vx *= -1;
+
+      if (e.shoots) {
+        e.lastFire += dt * 1000;
+        if (e.lastFire >= e.fireRate) {
+          e.lastFire = 0;
+          const a = Math.atan2(game.wokY - e.y, game.wokX - e.x);
+          game.eBullets.push({ x: e.x, y: e.y + e.size, vx: Math.cos(a) * 2.5, vy: Math.sin(a) * 2.5, size: 5, dmg: e.dmg * .5, color: '#ef4444' });
+        }
+      }
+    }
+
+    // Hit wok
+    if (Math.hypot(e.x - game.wokX, e.y - game.wokY) < (game.wokSize + e.size) * .6) {
+      game.temp -= e.dmg;
+      spawnParticles(game.wokX, game.wokY, '#ef4444', 8, 3, 15);
+      e.hp = 0;
+    }
+
+    // Dead
+    if (e.hp <= 0) {
+      game.score += e.score;
+      game.killStreak++;
+      spawnParticles(e.x, e.y, e.color, e.boss ? 30 : e.elite ? 15 : 8, e.boss ? 5 : 3, 20);
+
+      // Drop pickup
+      if (Math.random() < .3 || e.elite || e.boss) {
+        game.pickups.push({ x: e.x, y: e.y, vy: .5, type: 'heal', emoji: '🥗', value: e.boss ? 20 : e.elite ? 10 : 5 });
+      }
+      game.enemies.splice(i, 1);
+    }
+  }
+
+  // Enemy bullets
+  for (let i = game.eBullets.length - 1; i >= 0; i--) {
+    const b = game.eBullets[i];
+    b.x += b.vx * dt * 60;
+    b.y += b.vy * dt * 60;
+    if (b.y > H || b.y < -20 || b.x < -20 || b.x > W + 20) { game.eBullets.splice(i, 1); continue; }
+    if (Math.hypot(b.x - game.wokX, b.y - game.wokY) < game.wokSize) {
+      game.temp -= b.dmg;
+      spawnParticles(game.wokX, game.wokY, '#ef4444', 5, 2, 10);
+      game.eBullets.splice(i, 1);
+    }
+  }
+
+  // Pickups
+  for (let i = game.pickups.length - 1; i >= 0; i--) {
+    const pk = game.pickups[i];
+    pk.y += pk.vy;
+    if (pk.y > H + 20) { game.pickups.splice(i, 1); continue; }
+    if (Math.hypot(pk.x - p.x, pk.y - p.y) < 35) {
+      game.temp = Math.min(game.maxTemp, game.temp + pk.value);
+      spawnParticles(pk.x, pk.y, '#4ade80', 8, 2, 12);
+      game.pickups.splice(i, 1);
+    }
+  }
+
+  // Particles
+  for (let i = game.particles.length - 1; i >= 0; i--) {
+    const pt = game.particles[i];
+    pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+    if (pt.life <= 0) game.particles.splice(i, 1);
+  }
+
+  // Temp clamp
+  game.temp = Math.max(0, Math.min(game.maxTemp, game.temp));
+
+  // Game over
+  if (game.temp <= 0) {
+    game.gameOver = true;
+    state = 'gameover';
+    renderUI();
+    return;
+  }
+
+  // Wave complete check
+  if (game.spawning && game.spawnQueue.length === 0 && game.enemies.length === 0) {
+    game.spawning = false;
+    game.waveComplete = true;
+    game.waveIdx++;
+    if (game.waveIdx < game.waves.length) {
+      game.showUpgrade = true;
+      game.upgradeOptions = getUpgradeOptions();
+      renderUI();
+    } else {
+      if (game.chapter < 3) {
+        game.chapter++;
+        game.waveIdx = 0;
+        game.waves = buildWaves(game.chapter);
+        game.showUpgrade = true;
+        game.upgradeOptions = getUpgradeOptions();
+        renderUI();
+      } else {
+        game.victory = true;
+        state = 'victory';
+        renderUI();
+      }
+    }
+  }
+}
+
+function dealDamage(e, b) {
+  let dmg = b.dmg;
+  if (b.crit) dmg *= game.player.critDmg;
+  e.hp -= dmg;
+  e.hitFlash = 5;
+  if (b.slow > 0) { e.slow = 1 - b.slow; e.slowTimer = 1500; }
+  if (b.freeze > 0) { e.frozenTimer = b.freeze * 1000; e.frozen = true; }
+  if (b.burn > 0) { e.burnDmg = b.dmg * .3; e.burnTimer = b.burn * 1000; }
+  if (b.crit) spawnParticles(e.x, e.y, '#fbbf24', 6, 3, 10);
+}
+
+// ---------- Rendering ----------
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0f172a');
+  bgGrad.addColorStop(.7, '#1e293b');
+  bgGrad.addColorStop(1, '#2d1b0e');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Kitchen floor
+  const floorY = H * .82;
+  ctx.fillStyle = '#2d1b0e';
+  ctx.fillRect(0, floorY, W, H - floorY);
+  ctx.strokeStyle = '#3d2b1a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < W; i += 30) {
+    ctx.beginPath(); ctx.moveTo(i, floorY); ctx.lineTo(i, H); ctx.stroke();
+  }
+  for (let i = floorY; i < H; i += 20) {
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke();
+  }
+
+  // Track line
+  ctx.strokeStyle = 'rgba(255,255,255,.1)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath(); ctx.moveTo(20, H * TRACK_Y_RATIO); ctx.lineTo(W - 20, H * TRACK_Y_RATIO); ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (!game) return;
+
+  // Zones
+  game.zones.forEach(z => {
+    const alpha = Math.min(1, z.life / 500) * .3;
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+    ctx.fillStyle = z.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+  });
+
+  // Shields
+  game.shields.forEach(s => {
+    const alpha = Math.min(1, s.life / 1000) * .5;
+    ctx.fillStyle = `rgba(252,231,243,${alpha})`;
+    ctx.fillRect(s.x, s.y, s.w, s.h);
+  });
+
+  // Wok heart
+  drawWok();
+
+  // Pickups
+  game.pickups.forEach(pk => {
+    ctx.font = `${16 * SCALE}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(pk.emoji, pk.x, pk.y + 5);
+  });
+
+  // Enemy bullets
+  game.eBullets.forEach(b => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+    ctx.fillStyle = b.color;
+    ctx.fill();
+  });
+
+  // Enemies
+  game.enemies.forEach(e => {
+    const flash = e.hitFlash > 0;
+    if (e.frozen) {
+      ctx.fillStyle = 'rgba(125,211,252,.3)';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.size * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.font = `${e.size * 1.6}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (flash) { ctx.globalAlpha = .6; }
+    ctx.fillText(e.emoji, e.x, e.y);
+    ctx.globalAlpha = 1;
+
+    // HP bar
+    if (e.elite || e.boss) {
+      const bw = e.size * 2;
+      ctx.fillStyle = 'rgba(0,0,0,.5)';
+      ctx.fillRect(e.x - bw / 2, e.y - e.size - 8, bw, 4);
+      ctx.fillStyle = e.boss ? '#ef4444' : '#f97316';
+      ctx.fillRect(e.x - bw / 2, e.y - e.size - 8, bw * (e.hp / e.maxHp), 4);
+    }
+  });
+
+  // Summons
+  game.summons.forEach(sm => {
+    ctx.font = `${sm.size * 1.8}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sm.emoji, sm.x, sm.y);
+  });
+
+  // Bullets
+  game.bullets.forEach(b => {
+    ctx.font = `${b.size * 1.5}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.emoji, b.x, b.y);
+    if (b.crit) {
+      ctx.fillStyle = 'rgba(251,191,36,.4)';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // Player
+  drawPlayer();
+
+  // Particles
+  game.particles.forEach(pt => {
+    ctx.globalAlpha = pt.life / pt.maxLife;
+    ctx.fillStyle = pt.color;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Boss warning
+  if (game.bossWarning > 0) {
+    ctx.globalAlpha = Math.abs(Math.sin(game.bossWarning * .1));
+    ctx.fillStyle = '#ef4444';
+    ctx.font = `bold ${24 * SCALE}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠️ BOSS 来袭 ⚠️', W / 2, H * .3);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawWok() {
+  const wx = game.wokX, wy = game.wokY, ws = game.wokSize * SCALE;
+  // Glow
+  const glow = ctx.createRadialGradient(wx, wy, 0, wx, wy, ws * 2);
+  glow.addColorStop(0, `rgba(239,68,68,${game.temp / 200})`);
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(wx - ws * 2, wy - ws * 2, ws * 4, ws * 4);
+
+  // Fire particles
+  if (game.temp > 20) {
+    for (let i = 0; i < 3; i++) {
+      const fx = wx + (Math.random() - .5) * ws * 1.2;
+      const fy = wy + (Math.random() - .5) * ws * .5;
+      ctx.beginPath();
+      ctx.arc(fx, fy, Math.random() * 3 + 1, 0, Math.PI * 2);
+      ctx.fillStyle = Math.random() > .5 ? '#ff6b35' : '#fbbf24';
+      ctx.fill();
+    }
+  }
+
+  ctx.font = `${ws * 2}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🍳', wx, wy);
+}
+
+function drawPlayer() {
+  const p = game.player;
+  ctx.font = `${p.size * SCALE * 1.8}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(p.char.emoji, p.x, p.y);
+
+  // Cannon barrel glow
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - p.size * SCALE, 3, 0, Math.PI * 2);
+  ctx.fillStyle = p.char.color;
+  ctx.fill();
+}
+
+// ---------- HUD ----------
+function renderHUD() {
+  if (!game) return;
+  const tempPct = game.temp / game.maxTemp;
+  const tempColor = tempPct > .6 ? COLORS.tempLow : tempPct > .3 ? COLORS.tempMid : COLORS.tempHigh;
+
+  UI.innerHTML = `
+    <div class="hud-top">
+      <div class="temp-bar-wrap">
+        <div class="temp-label">🔥 锅心温度 ${Math.floor(game.temp)}%</div>
+        <div class="temp-bar-outer"><div class="temp-bar-inner" style="width:${tempPct*100}%;background:${tempColor}"></div></div>
+      </div>
+      <div class="wave-info">
+        第${game.chapter}章<br>
+        波次 ${Math.min(game.waveIdx + 1, game.waves.length)}/${game.waves.length}
+      </div>
+    </div>
+    <div class="score-display">⭐ ${game.score}</div>
+    <div class="skill-btns">
+      <div class="skill-btn ${game.player.skill1CD > 0 ? 'on-cd' : ''}" onclick="activateSkill(1)">
+        ${game.player.skill1.emoji}
+        ${game.player.skill1CD > 0 ? `<span class="skill-cd">${Math.ceil(game.player.skill1CD/1000)}s</span>` : ''}
+      </div>
+      ${game.player.skill2 ? `
+        <div class="skill-btn ${game.player.skill2CD > 0 ? 'on-cd' : ''}" onclick="activateSkill(2)">
+          ${game.player.skill2.emoji}
+          ${game.player.skill2CD > 0 ? `<span class="skill-cd">${Math.ceil(game.player.skill2CD/1000)}s</span>` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ---------- UI Screens ----------
+function renderUI() {
+  if (state === 'menu') {
+    UI.innerHTML = `
+      <div class="overlay">
+        <h1>🍳 后厨防线</h1>
+        <h2>锅心守卫战</h2>
+        <p>操控灶台炮台，用食物子弹抵御暴走食灵，守护锅心铁锅！</p>
+        <p style="font-size:.7rem;color:#64748b">← → 或滑动移动 · 自动射击 · 点击技能按钮释放</p>
+        <div class="char-select">
+          ${CHARACTERS.map((ch, i) => `
+            <div class="char-card ${i===selectedChar?'selected':''}" onclick="selectedChar=${i};renderUI()">
+              <span class="emoji">${ch.emoji}</span>
+              <div class="name" style="color:${ch.color}">${ch.name}</div>
+              <div class="desc">${ch.desc.replace('\n','<br>')}</div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn" onclick="startGame()">🔥 开始守卫</button>
+        <a href="/" class="btn btn-sm btn-blue" style="text-decoration:none;margin-top:.5em">← 返回博客</a>
+      </div>
+    `;
+  } else if (state === 'playing' && game.showUpgrade) {
+    UI.innerHTML = `
+      <div class="overlay">
+        <h2>🎁 选择强化</h2>
+        <p>第${game.chapter}章 · 波次 ${game.waveIdx}/${game.waves.length}</p>
+        <div class="upgrade-cards">
+          ${game.upgradeOptions.map((u, i) => `
+            <div class="upgrade-card" onclick="applyUpgrade(${i})">
+              <span class="emoji">${u.emoji}</span>
+              <div class="uname">${u.name}</div>
+              <div class="udesc">${u.desc}</div>
+              <span class="rarity rarity-${u.rarity}">${u.rarity === 'common' ? '基础' : u.rarity === 'rare' ? '稀有' : '传说'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } else if (state === 'gameover') {
+    UI.innerHTML = `
+      <div class="overlay">
+        <h1>🍳 这一锅炒砸了</h1>
+        <h2>老食客帮你稳住了锅心…</h2>
+        <p>得分：${game.score}<br>到达：第${game.chapter}章 波次${game.waveIdx}<br>击杀连击：${game.killStreak}</p>
+        <button class="btn" onclick="state='menu';renderUI()">🔄 再来一局</button>
+        <a href="/" class="btn btn-sm btn-blue" style="text-decoration:none;margin-top:.5em">← 返回博客</a>
+      </div>
+    `;
+  } else if (state === 'victory') {
+    UI.innerHTML = `
+      <div class="overlay">
+        <h1>🎉 守住了食堂！</h1>
+        <h2>安抚了食客的执念</h2>
+        <p>总得分：${game.score}<br>通关：全${game.chapter}章<br>锅心温度：${Math.floor(game.temp)}%</p>
+        <button class="btn btn-green" onclick="state='menu';renderUI()">🏆 返回大厅</button>
+        <a href="/" class="btn btn-sm btn-blue" style="text-decoration:none;margin-top:.5em">← 返回博客</a>
+      </div>
+    `;
+  } else if (state === 'playing') {
+    renderHUD();
+  }
+}
+
+function startGame() {
+  game = new GameState(selectedChar);
+  state = 'playing';
+  renderUI();
+  startWave();
+}
+
+// ---------- Input ----------
+C.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  inputActive = true;
+  inputStartX = t.clientX;
+  playerStartX = game ? game.player.x : W / 2;
+}, { passive: false });
+C.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!inputActive) return;
+  inputX = e.touches[0].clientX;
+}, { passive: false });
+C.addEventListener('touchend', () => { inputActive = false; });
+
+C.addEventListener('mousedown', e => {
+  inputActive = true;
+  inputStartX = e.clientX;
+  playerStartX = game ? game.player.x : W / 2;
+});
+window.addEventListener('mousemove', e => { if (inputActive) inputX = e.clientX; });
+window.addEventListener('mouseup', () => { inputActive = false; });
+
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true;
+  if (e.key === '1') activateSkill(1);
+  if (e.key === '2') activateSkill(2);
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// ---------- Game Loop ----------
+let lastTime = 0;
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, .05);
+  lastTime = ts;
+
+  if (state === 'playing' && !game.showUpgrade) {
+    update(dt);
+    render();
+    // Update HUD every few frames
+    if (Math.floor(ts / 200) !== Math.floor((ts - 16) / 200)) renderHUD();
+  } else if (state === 'playing') {
+    render();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+renderUI();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

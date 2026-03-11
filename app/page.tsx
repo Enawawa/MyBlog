@@ -173,6 +173,17 @@ export default function Home() {
                 </div>
               </div>
             </a>
+            <a href="/games/kitchen-defense.html" className="group block">
+              <div className="glass rounded-2xl overflow-hidden glass-hover border-amber-500/20">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-amber-600/30 to-red-700/30 flex items-center justify-center">
+                  <span className="text-5xl md:text-6xl group-hover:scale-110 transition-transform duration-300">🍳</span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-amber-400">后厨防线</h3>
+                  <p className="text-xs text-slate-500 mt-1">弹幕 · 肉鸽</p>
+                </div>
+              </div>
+            </a>
           </div>
         </div>
       </section>
