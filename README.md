@@ -5,6 +5,7 @@
 ## 功能
 
 - **博客首页** `/` - 全屏 Banner + 内容卡片导航
+- **站内问答搜索** `/` - 输入问题返回站内功能答案（JWT 鉴权）
 - **日常小记** `/daily` - 生活随笔
 - **碎片感受** `/thoughts` - 片刻感悟
 - **共享剪贴板** `/clipboard` - 创建房间，粘贴即分享文字和图片
@@ -23,6 +24,9 @@
 2. 在 Environment Variables 中添加：
    - `UPSTASH_REDIS_REST_URL`
    - `UPSTASH_REDIS_REST_TOKEN`
+   - `SEARCH_JWT_SECRET`
+   - `SEARCH_CLIENT_ID`
+   - `NEXT_PUBLIC_SEARCH_CLIENT_ID`
 3. 点击 Deploy
 
 ### 3. 绑定域名 suno-fashion.com
@@ -35,7 +39,7 @@
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local 填入 Redis 凭证
+# 编辑 .env.local 填入 Redis / JWT 等环境变量
 npm install
 npm run dev
 ```
