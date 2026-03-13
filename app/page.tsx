@@ -89,6 +89,20 @@ export default function Home() {
             </div>
           </Link>
 
+          <Link href="/treehole" className="group">
+            <div className="glass rounded-2xl overflow-hidden glass-hover border-cyan-500/20">
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-cyan-600/20 to-sky-600/20 flex items-center justify-center">
+                <span className="text-6xl">🌳</span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-lg font-semibold text-cyan-400">倾听树洞</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  对话式搜索，匿名倾诉与提问
+                </p>
+              </div>
+            </div>
+          </Link>
+
           <Link href="/game" className="group">
             <div className="glass rounded-2xl overflow-hidden glass-hover border-amber-500/20">
               <div className="relative aspect-[4/3] bg-gradient-to-br from-amber-600/20 to-orange-600/20 flex items-center justify-center">
