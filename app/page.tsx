@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import SearchQA from "./components/SearchQA";
 
 export default function Home() {
   return (
@@ -23,6 +24,8 @@ export default function Home() {
           <p className="text-lg text-white/80">怎么着都能活</p>
         </div>
       </section>
+
+      <SearchQA />
 
       {/* Blog Cards */}
       <section className="max-w-5xl mx-auto px-6 py-20">
